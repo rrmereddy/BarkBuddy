@@ -17,8 +17,11 @@ struct AddUserView: View {
     @State var last: String = ""
     @State var email: String = ""
     @State var phone: String = ""
-    @State var userType:String = ""
-    @State var infoEntered = false //letting us know if a user has created their profile
+    @State var userType: String = ""
+    @State var infoEntered = false // letting us know if a user has created their profile
+    @State var documentID: String? = nil // Store the document ID for deleting the profile
+    @State var isDeleted = false // Track whether the user has deleted their profile
+    
     var body: some View {
         VStack {
             Text("Add User")
@@ -33,8 +36,7 @@ struct AddUserView: View {
             // User input fields
             VStack {
                 Text("I am a...")
-                HStack { //lets us know which area of the database to store this information
-                    //TS work on the UI for these Buttons, can't tell which one is pressed atm
+                HStack {
                     Button("Owner"){
                         userType = "Users"
                     }
@@ -63,46 +65,93 @@ struct AddUserView: View {
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                 }
                 
-                // Submit Button
-                Button("Enter") {
-                    // Handle your button action here
-                    Task {
-                        async let user = addUser(first: first, last: last, email: email, phone: phone, userType: userType)
-                        await user
+                // Submit Button (now it handles both creating and updating)
+                Button(infoEntered ? "Update Profile" : "Enter") {
+                    if let documentID = documentID {
+                        // If profile exists, update it
+                        Task {
+                            await updateUserProfile(documentID: documentID, first: first, last: last, email: email, phone: phone)
+                        }
+                    } else {
+                        // If it's a new profile, create it
+                        Task {
+                            async let user = addUser(first: first, last: last, email: email, phone: phone, userType: userType)
+                            await user
+                        }
                     }
                     infoEntered = true
-                    
-                }
-                .disabled(first.isEmpty || last.isEmpty || email.isEmpty || phone.isEmpty || infoEntered || userType.isEmpty) // Disable if fields are empty or if info has already been entered
+                } //TS make it so that the button switches back to Enter once a profile is deleted
+                .disabled(first.isEmpty || last.isEmpty || email.isEmpty || phone.isEmpty || userType.isEmpty)
                 .padding()
                 
-                if infoEntered == true {
+                if infoEntered {
                     Text("Your information has been saved!")
+                    
+                    // Make the delete button visible after profile is created
+                    if let documentID = documentID, !isDeleted {
+                        Button("Delete Profile") {
+                            Task {
+                                await deleteUserProfile(documentID: documentID)
+                            }
+                            isDeleted = true
+                        }
+                        .foregroundColor(.red)
+                        .padding()
+                    }
                 }
-                
             }
             .padding()
+        }
+    }
+    
+    // Function to add user data to Firestore
+    func addUser(first: String, last: String, email: String, phone: String, userType: String) async {
+        let db = Firestore.firestore()
+        let dateCreated = Date() // Get the date created for the user
+        do {
+            let ref = try await db.collection(userType).addDocument(data: [
+                "first": first,
+                "last": last,
+                "email": email,
+                "phone": phone,
+                "createdAt": dateCreated
+            ])
+            print("Document added with ID: \(ref.documentID)")
+            documentID = ref.documentID // Store the document ID to delete later
+        } catch {
+            print("Error adding document: \(error.localizedDescription)")
+        }
+    }
+    
+    // Function to update user profile in Firestore
+    func updateUserProfile(documentID: String, first: String, last: String, email: String, phone: String) async {
+        let db = Firestore.firestore()
+        do {
+            try await db.collection(userType).document(documentID).updateData([
+                "first": first,
+                "last": last,
+                "email": email,
+                "phone": phone
+            ])
+            print("Document updated with ID: \(documentID)")
+        } catch {
+            print("Error updating document: \(error.localizedDescription)")
+        }
+    }
+    
+    // Function to delete user profile from Firestore
+    func deleteUserProfile(documentID: String) async {
+        let db = Firestore.firestore()
+        do {
+            try await db.collection(userType).document(documentID).delete()
+            print("Document deleted with ID: \(documentID)")
+        } catch {
+            print("Error deleting document: \(error.localizedDescription)")
         }
     }
 }
 #Preview {
     AddUserView()
 }
-// Function to add user data to Firestore
-func addUser(first: String, last: String, email: String, phone: String, userType: String) async {
-    let db = Firestore.firestore()
-    let dateCreated = Date() //lets us get the date created for the user
-    do {
-        let ref = try await db.collection(userType).addDocument(data: [
-            "first": first,
-            "last": last,
-            "email": email,
-            "phone": phone,
-            "createdAt": dateCreated
-        ])
-        print("Document added with ID: \(ref.documentID)")
-    } catch {
-        print("Error adding document: \(error.localizedDescription)")
-    }
-}
+
 

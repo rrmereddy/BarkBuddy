@@ -59,140 +59,214 @@ struct DuringWalkView: View {
             .background(Color.white)
             .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
             
-            // Map View
-            ZStack(alignment: .bottom) {
-                // Map
-                Map(coordinateRegion: $region, annotationItems: [WalkAnnotation(coordinate: walkPath.first ?? region.center)]) { item in
-                    MapAnnotation(coordinate: item.coordinate) {
-                        VStack {
-                            Image(systemName: "pawprint.fill")
-                                .font(.system(size: 24))
-                                .foregroundColor(.white)
+            ScrollView {
+                VStack(spacing: 16) {
+                    // Map View - Now approximately 1/3 of the screen
+                    ZStack(alignment: .topTrailing) {
+                        Map(coordinateRegion: $region, annotationItems: [WalkAnnotation(coordinate: walkPath.first ?? region.center)]) { item in
+                            MapAnnotation(coordinate: item.coordinate) {
+                                VStack {
+                                    Image(systemName: "pawprint.fill")
+                                        .font(.system(size: 20))
+                                        .foregroundColor(.white)
+                                        .padding(6)
+                                        .background(Color.teal)
+                                        .clipShape(Circle())
+                                        .shadow(radius: 2)
+                                    
+                                    Text("Max")
+                                        .font(.caption2)
+                                        .fontWeight(.medium)
+                                        .padding(3)
+                                        .background(Color.white)
+                                        .cornerRadius(6)
+                                        .shadow(radius: 1)
+                                }
+                            }
+                        }
+                        .frame(height: 200) // Set height to approximately 1/3 of typical screen
+                        .cornerRadius(16)
+                        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                        
+                        // Expand map button
+                        Button(action: {
+                            // Action to expand map to full screen
+                        }) {
+                            Image(systemName: "arrow.up.left.and.arrow.down.right")
                                 .padding(8)
-                                .background(Color.teal)
-                                .clipShape(Circle())
-                                .shadow(radius: 3)
-                            
-                            Text("Max")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .padding(4)
                                 .background(Color.white)
-                                .cornerRadius(8)
-                                .shadow(radius: 1)
+                                .clipShape(Circle())
+                                .shadow(radius: 2)
+                                .padding(8)
                         }
                     }
-                }
-                .overlay(
-                    Path { path in
-                        guard let firstCoord = walkPath.first else { return }
-                        
-                        path.move(to: CGPoint(x: 0, y: 0)) // Placeholder - will be replaced by map points
-                        
-                        for coordinate in walkPath {
-                            path.addLine(to: CGPoint(x: 0, y: 0)) // Placeholder - will be replaced by map points
+                    .padding(.horizontal)
+                    
+                    // Dog and walker card
+                    VStack {
+                        HStack(alignment: .center, spacing: 12) {
+                            // Dog Image
+                            Circle()
+                                .fill(Color.gray.opacity(0.2))
+                                .frame(width: 60, height: 60)
+                                .overlay(
+                                    Text("🐶")
+                                        .font(.title)
+                                )
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Max with Sarah")
+                                    .font(.headline)
+                                    .foregroundColor(Color(UIColor.darkGray))
+                                
+                                Text("Walk in progress")
+                                    .font(.subheadline)
+                                    .foregroundColor(Color.teal)
+                                    
+                                // Adding walker rating
+                                HStack {
+                                    Image(systemName: "star.fill")
+                                        .foregroundColor(.yellow)
+                                        .font(.caption)
+                                    Text("4.9")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                // Contact walker action
+                            }) {
+                                Image(systemName: "message.fill")
+                                    .foregroundColor(.white)
+                                    .padding(10)
+                                    .background(Color.teal)
+                                    .cornerRadius(12)
+                            }
                         }
+                        .padding()
+                        .background(Color.white)
+                        .cornerRadius(16)
+                        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
                     }
-                    .stroke(Color.teal, lineWidth: 4)
-                    .opacity(0.7)
-                )
-                .edgesIgnoringSafeArea(.all)
-                
-                // Walk Stats Card
-                VStack(spacing: 0) {
-                    // Dog and walker info
-                    HStack(alignment: .center, spacing: 12) {
-                        // Dog Image
-                        Circle()
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(width: 50, height: 50)
-                            .overlay(
-                                Text("🐶")
-                                    .font(.title)
-                            )
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Max with Sarah")
+                    .padding(.horizontal)
+                    
+                    // Walk stats card
+                    VStack(spacing: 0) {
+                        // Section title
+                        HStack {
+                            Text("Current Walk Stats")
                                 .font(.headline)
                                 .foregroundColor(Color(UIColor.darkGray))
+                            Spacer()
+                        }
+                        .padding(.horizontal)
+                        .padding(.top)
+                        .padding(.bottom, 8)
+                        
+                        // Stats grid
+                        HStack {
+                            WalkStatView(
+                                icon: "clock.fill",
+                                value: formattedDuration,
+                                label: "Duration"
+                            )
                             
-                            Text("Walk in progress")
-                                .font(.subheadline)
-                                .foregroundColor(Color.teal)
+                            Divider()
+                                .frame(height: 40)
+                            
+                            WalkStatView(
+                                icon: "figure.walk",
+                                value: String(format: "%.2f", walkDistance),
+                                label: "Miles"
+                            )
+                            
+                            Divider()
+                                .frame(height: 40)
+                            
+                            WalkStatView(
+                                icon: "pawprint.fill",
+                                value: "2",
+                                label: "Potty Breaks"
+                            )
+                        }
+                        .padding()
+                        .background(Color.white)
+                        .cornerRadius(16)
+                        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+                        .padding(.horizontal)
+                    }
+                    
+                    // Activity timeline
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Activity Timeline")
+                            .font(.headline)
+                            .foregroundColor(Color(UIColor.darkGray))
+                            .padding(.horizontal)
+                        
+                        VStack(spacing: 0) {
+                            TimelineItemView(
+                                time: "2:32 PM",
+                                activity: "Potty break",
+                                icon: "exclamationmark.circle.fill",
+                                iconColor: .yellow
+                            )
+                            
+                            TimelineSeparator()
+                            
+                            TimelineItemView(
+                                time: "2:15 PM",
+                                activity: "Started walk",
+                                icon: "figure.walk",
+                                iconColor: .teal
+                            )
+                        }
+                        .padding(.vertical, 12)
+                        .background(Color.white)
+                        .cornerRadius(16)
+                        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+                        .padding(.horizontal)
+                    }
+                    
+                    // Action buttons
+                    HStack(spacing: 16) {
+                        Button(action: {
+                            // Pause walk
+                            isWalking.toggle()
+                        }) {
+                            Text(isWalking ? "Pause Walk" : "Resume Walk")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .frame(height: 50)
+                                .frame(maxWidth: .infinity)
+                                .background(isWalking ? Color.orange : Color.teal)
+                                .cornerRadius(12)
                         }
                         
-                        Spacer()
-                        
                         Button(action: {
-                            // Contact walker action
+                            // End walk
                         }) {
-                            Image(systemName: "message.fill")
+                            Text("End Walk")
+                                .font(.headline)
+                                .fontWeight(.semibold)
                                 .foregroundColor(.white)
-                                .padding(10)
-                                .background(Color.teal)
+                                .frame(height: 50)
+                                .frame(maxWidth: .infinity)
+                                .background(Color.red)
                                 .cornerRadius(12)
                         }
                     }
-                    .padding()
-                    .background(Color.white)
-                    
-                    Divider()
-                    
-                    // Walk stats
-                    HStack {
-                        WalkStatView(
-                            icon: "clock.fill",
-                            value: formattedDuration,
-                            label: "Duration"
-                        )
-                        
-                        Divider()
-                            .frame(height: 40)
-                        
-                        WalkStatView(
-                            icon: "figure.walk",
-                            value: String(format: "%.2f", walkDistance),
-                            label: "Miles"
-                        )
-                        
-                        Divider()
-                            .frame(height: 40)
-                        
-                        WalkStatView(
-                            icon: "pawprint.fill",
-                            value: "2",
-                            label: "Potty Breaks"
-                        )
-                    }
-                    .padding()
-                    .background(Color.white)
-                    
-                    // Action Button
-                    Button(action: {
-                        isWalking.toggle()
-                    }) {
-                        Text(isWalking ? "End Walk" : "Resume Walk")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.white)
-                            .frame(height: 50)
-                            .frame(maxWidth: .infinity)
-                            .background(isWalking ? Color.red : Color.teal)
-                            .cornerRadius(15)
-                            .padding(.horizontal)
-                            .padding(.bottom)
-                    }
+                    .padding(.horizontal)
+                    .padding(.bottom, 20)
                 }
-                .background(Color.white)
-                .cornerRadius(20, corners: [.topLeft, .topRight])
-                .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: -5)
+                .padding(.top, 16)
             }
         }
         .onAppear {
             startTimer()
-            
-            // In a real app, this would be replaced with actual location tracking
-            // via CLLocationManager and would update the map accordingly
         }
         .onDisappear {
             timer?.invalidate()
@@ -211,7 +285,6 @@ struct DuringWalkView: View {
                 walkDuration += 1
                 
                 // Simulate distance increase
-                // In a real app, this would calculate actual distance from GPS coordinates
                 if walkDuration.truncatingRemainder(dividingBy: 15) == 0 {
                     walkDistance += 0.02
                 }
@@ -249,31 +322,53 @@ struct WalkStatView: View {
     }
 }
 
-// Extension to apply rounded corners to specific corners
-extension View {
-    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
-        clipShape(RoundedCorner(radius: radius, corners: corners))
+// Timeline components
+struct TimelineItemView: View {
+    let time: String
+    let activity: String
+    let icon: String
+    let iconColor: Color
+    
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Text(time)
+                .font(.subheadline)
+                .foregroundColor(.gray)
+                .frame(width: 70, alignment: .leading)
+            
+            Image(systemName: icon)
+                .foregroundColor(iconColor)
+                .font(.system(size: 16))
+            
+            Text(activity)
+                .font(.subheadline)
+                .foregroundColor(Color(UIColor.darkGray))
+            
+            Spacer()
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 6)
     }
 }
 
-struct RoundedCorner: Shape {
-    var radius: CGFloat = .infinity
-    var corners: UIRectCorner = .allCorners
-    
-    func path(in rect: CGRect) -> Path {
-        let path = UIBezierPath(
-            roundedRect: rect,
-            byRoundingCorners: corners,
-            cornerRadii: CGSize(width: radius, height: radius)
-        )
-        return Path(path.cgPath)
+struct TimelineSeparator: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            Text(" ")
+                .frame(width: 70, alignment: .leading)
+            Rectangle()
+                .fill(Color.gray.opacity(0.2))
+                .frame(width: 1, height: 20)
+                .padding(.leading, 8)
+            Spacer()
+        }
+        .padding(.horizontal)
     }
 }
 
 // Preview provider
-
-
-
-#Preview {
-    DuringWalkView()
+struct WalkTrackingView_Previews: PreviewProvider {
+    static var previews: some View {
+        DuringWalkView()
+    }
 }

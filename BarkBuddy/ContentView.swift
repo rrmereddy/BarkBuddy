@@ -29,23 +29,6 @@ struct ContentView: View {
         .padding()
         .onAppear {
             print("ContentView appeared")  // Confirm onAppear is triggered
-            Task {
-                await addTestUser()
-            }
-        }
-    }
-    
-    func addTestUser() async {
-        let db = Firestore.firestore()
-        do {
-            let ref = try await db.collection("Users").addDocument(data: [
-                "first": "Ada",
-                "last": "Lovelace",
-                "born": 1815
-            ])
-            print("Document added with ID: \(ref.documentID)")
-        } catch {
-            print("Error adding document: \(error.localizedDescription)")
         }
     }
 }

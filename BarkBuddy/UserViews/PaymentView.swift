@@ -4,6 +4,7 @@
 //
 //  Created by Storms, Trinity on 4/10/25.
 //
+// will want to connect our vars and view details to maybe just a screen of the completed walk?
 
 import SwiftUI
 

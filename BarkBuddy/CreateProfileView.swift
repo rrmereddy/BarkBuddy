@@ -23,6 +23,8 @@ struct CreateProfileView: View {
     @State private var isShowingAddPetSheet = false
     @State private var newPetName = ""
     @State private var newPetBreed = ""
+    @State private var otherInfo = ""
+    @State private var temperament = ""
     
     // Alert states
     @State private var showingSaveAlert = false
@@ -167,6 +169,8 @@ struct CreateProfileView: View {
                 Section {
                     TextField("Pet's Name", text: $newPetName)
                     TextField("Pet's Breed", text: $newPetBreed)
+                    TextField("Pet's Temperament", text:$temperament)
+                    TextField("Any Other Info?", text:$otherInfo)
                 }
             }
             .navigationTitle("Add New Pet")
@@ -205,13 +209,13 @@ struct CreateProfileView: View {
     }
     
     func addPet() {
-        guard !newPetName.isEmpty, !newPetBreed.isEmpty else {
+        guard !newPetName.isEmpty, !newPetBreed.isEmpty, !otherInfo.isEmpty, !temperament.isEmpty else {
             errorMessage = "Please enter both pet name and breed"
             showingErrorAlert = true
             return
         }
         
-        let newPet = Pet(name: newPetName, breed: newPetBreed)
+        let newPet = Pet(name: newPetName, breed: newPetBreed, temperament: temperament, otherInfo: otherInfo)
         pets.append(newPet)
         
         isShowingAddPetSheet = false
@@ -244,6 +248,8 @@ struct Pet: Identifiable {
     let id = UUID()
     let name: String
     let breed: String
+    let temperament: String
+    let otherInfo: String
 }
 
 // MARK: - Pet Row View

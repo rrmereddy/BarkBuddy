@@ -7,9 +7,13 @@
 
 import SwiftUI
 
-struct HomeV: View {
+struct HomeView: View {
     @State private var searchText = ""
     @State private var selectedTab = "home"
+    @State private var showProfileModal = false
+    @State private var showAllWalkersModal = false
+    @State private var showFutureWalksModal = false
+    @State private var showProfileDogWalkerModal = false  // New state variable for ProfileDogWalker modal
     
     var body: some View {
         VStack(spacing: 0) {
@@ -19,7 +23,7 @@ struct HomeV: View {
                     Image(systemName: "pawprint.fill")
                         .foregroundColor(Color.teal)
                         .font(.system(size: 24))
-                    Text("PawPals")
+                    Text("BarkBuddy")
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundColor(Color.teal)
@@ -27,9 +31,20 @@ struct HomeV: View {
                 
                 Spacer()
                 
-                Image(systemName: "bell")
-                    .foregroundColor(Color.gray)
-                    .font(.system(size: 20))
+                HStack(spacing: 16) {
+                    Image(systemName: "bell")
+                        .foregroundColor(Color.gray)
+                        .font(.system(size: 20))
+                    
+                    // Added profile button
+                    Button(action: {
+                        showProfileModal = true
+                    }) {
+                        Image(systemName: "person.circle")
+                            .foregroundColor(Color.teal)
+                            .font(.system(size: 22))
+                    }
+                }
             }
             .padding()
             .background(Color.white)
@@ -38,14 +53,18 @@ struct HomeV: View {
             // Main Content
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    // Welcome Section
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Hello, Emma!")
-                            .font(.title)
-                            .fontWeight(.bold)
-                            .foregroundColor(Color(UIColor.darkGray))
-                        Text("Find a trusted walker for Max today")
-                            .foregroundColor(Color.gray)
+                    // Welcome Section - with profile icon aligned
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Hello!")
+                                .font(.title)
+                                .fontWeight(.bold)
+                                .foregroundColor(Color(UIColor.darkGray))
+                            Text("Find a trusted walker today")
+                                .foregroundColor(Color.gray)
+                        }
+                        
+                        Spacer()
                     }
                     
                     // Search Bar
@@ -60,67 +79,80 @@ struct HomeV: View {
                     .cornerRadius(25)
                     .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 2)
                     
-                    // Quick Options
-                    HStack(spacing: 12) {
-                        // Quick Walk Option
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "clock")
-                                    .foregroundColor(Color.teal)
-                                Text("Quick Walk")
-                                    .fontWeight(.medium)
-                                    .foregroundColor(Color.teal.opacity(0.8))
-                            }
-                            Text("Find walkers available now")
-                                .font(.subheadline)
-                                .foregroundColor(Color.gray)
+                    // Quick Options - now in vertical layout
+                    VStack(spacing: 12) {
+                        // Quick Walk Option - Updated with ProfileDogWalker modal action
+                        Button(action: {
+                            showProfileDogWalkerModal = true  // Open the ProfileDogWalker modal
+                        }) {
+                            QuickOptionButton(
+                                icon: "clock",
+                                title: "Quick Walk",
+                                description: "Find walkers available now",
+                                color: .teal
+                            )
                         }
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.teal.opacity(0.1))
-                        .cornerRadius(15)
                         
                         // Schedule Option
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "calendar")
-                                    .foregroundColor(Color.blue)
-                                Text("Schedule")
-                                    .fontWeight(.medium)
-                                    .foregroundColor(Color.blue.opacity(0.8))
-                            }
-                            Text("Book walks in advance")
-                                .font(.subheadline)
-                                .foregroundColor(Color.gray)
+                        Button(action: {
+                            showFutureWalksModal = true
+                        }) {
+                            QuickOptionButton(
+                                icon: "calendar",
+                                title: "Schedule",
+                                description: "See your upcoming walks",
+                                color: .blue
+                            )
                         }
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.blue.opacity(0.1))
-                        .cornerRadius(15)
+                        
+                        // Past Walks Option (New)
+                        Button(action: {
+                            // Action for Past Walks button
+                        }) {
+                            QuickOptionButton(
+                                icon: "clock.arrow.circlepath",
+                                title: "Past Walks",
+                                description: "View your walking history",
+                                color: .purple
+                            )
+                        }
                     }
                     
-                    // Walker Recommendations
+                    // Recent Walkers (Renamed from Top Walkers Nearby)
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Top Walkers Nearby")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                            .foregroundColor(Color(UIColor.darkGray))
+                        HStack {
+                            Text("Recent Walkers")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(Color(UIColor.darkGray))
+                            
+                            Spacer()
+                            
+                            // Expand button
+                            Button(action: {
+                                showAllWalkersModal = true
+                            }) {
+                                Text("See All")
+                                    .font(.subheadline)
+                                    .foregroundColor(Color.teal)
+                            }
+                        }
                         
-                        // Walker Card 1
+                        // Recent Walker Card 1
                         WalkerCard(
                             name: "Sarah J.",
                             rating: 4.9,
                             distance: 0.8,
-                            availability: "Available today",
+                            availability: "Last walked: Yesterday",
                             price: "$18/30 min"
                         )
                         
-                        // Walker Card 2
+                        // Recent Walker Card 2
                         WalkerCard(
                             name: "Alex M.",
                             rating: 4.8,
                             distance: 1.2,
-                            availability: "Available tomorrow",
+                            availability: "Last walked: April 20",
                             price: "$20/30 min"
                         )
                     }
@@ -128,6 +160,24 @@ struct HomeV: View {
                 .padding()
             }
             .background(Color(UIColor.systemGray6))
+            .sheet(isPresented: $showProfileModal) {
+                Text("Profile Editor")
+                    .font(.title)
+                    .padding()
+                // Your profile editing view would go here
+            }
+            .sheet(isPresented: $showAllWalkersModal) {
+                Text("All Recent Walkers")
+                    .font(.title)
+                    .padding()
+                // Your full walkers list would go here
+            }
+            .sheet(isPresented: $showFutureWalksModal) {
+                FutureWalksView()
+            }
+            .sheet(isPresented: $showProfileDogWalkerModal) {
+                DogWalkerProfileView()  // Present the ProfileDogWalker view
+            }
             
             // Bottom Navigation
             HStack(spacing: 0) {
@@ -141,6 +191,7 @@ struct HomeV: View {
                 
                 TabButton(image: "calendar", title: "Bookings", isSelected: selectedTab == "bookings") {
                     selectedTab = "bookings"
+                    showFutureWalksModal = true
                 }
                 
                 TabButton(image: "message", title: "Messages", isSelected: selectedTab == "messages") {
@@ -156,6 +207,48 @@ struct HomeV: View {
             .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: -2)
         }
         .edgesIgnoringSafeArea(.bottom)
+    }
+}
+
+// Revised QuickOptionButton for vertical layout
+struct QuickOptionButton: View {
+    let icon: String
+    let title: String
+    let description: String
+    let color: Color
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Icon on the left
+            Image(systemName: icon)
+                .foregroundColor(.white)
+                .font(.system(size: 18))
+                .frame(width: 40, height: 40)
+                .background(color)
+                .cornerRadius(12)
+            
+            // Text content
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color(UIColor.darkGray))
+                Text(description)
+                    .font(.subheadline)
+                    .foregroundColor(Color.gray)
+            }
+            
+            Spacer()
+            
+            // Arrow icon
+            Image(systemName: "chevron.right")
+                .foregroundColor(color)
+                .font(.system(size: 14))
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .background(Color.white)
+        .cornerRadius(15)
+        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
     }
 }
 
@@ -243,12 +336,6 @@ struct new_TabButton: View {
     }
 }
 
-struct new_ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
-    }
-}
-
 #Preview{
-    ClaudeUI()
+    HomeView()
 }

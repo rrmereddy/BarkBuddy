@@ -10,6 +10,7 @@ import MapKit
 import CoreLocation
 
 struct PetOwnerWalkView: View {
+    @Environment(\.presentationMode) var presentationMode
     @State private var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
         span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
@@ -30,7 +31,8 @@ struct PetOwnerWalkView: View {
             // Header
             HStack {
                 Button(action: {
-                    // Go back action
+                    // Dismiss the modal
+                    presentationMode.wrappedValue.dismiss()
                 }) {
                     Image(systemName: "chevron.left")
                         .foregroundColor(Color.teal)

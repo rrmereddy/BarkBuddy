@@ -13,6 +13,7 @@ import MapKit
 import CoreLocation
 
 struct WalkerDuringWalkView: View {
+    @Environment(\.presentationMode) var presentationMode
     @State private var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
         span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
@@ -38,183 +39,88 @@ struct WalkerDuringWalkView: View {
     @State private var showActivityPopup = false
     @State private var selectedActivity: ActivityType? = nil
     
+    // Navigation state
+    @State private var showPaymentView = false
+    
     // Pet information
     let petName = "Max"
     let ownerName = "Jessica"
     let appointmentTime = "2:00 PM - 2:30 PM"
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack {
-                Button(action: {
-                    // Go back action
-                }) {
-                    Image(systemName: "chevron.left")
-                        .foregroundColor(Color.teal)
-                        .font(.system(size: 18, weight: .semibold))
-                }
-                
-                Spacer()
-                
-                Text(walkStarted ? "Walk in Progress" : "Start Your Walk")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(Color(UIColor.darkGray))
-                
-                Spacer()
-                
-                Button(action: {
-                    // Help or settings
-                }) {
-                    Image(systemName: "ellipsis")
-                        .foregroundColor(Color.gray)
-                        .font(.system(size: 18))
-                }
-            }
-            .padding()
-            .background(Color.white)
-            .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
-            
-            ScrollView {
-                VStack(spacing: 16) {
-                    // Pet card - always visible
-                    VStack {
-                        HStack(alignment: .center, spacing: 12) {
-                            // Pet Image
-                            Circle()
-                                .fill(Color.gray.opacity(0.2))
-                                .frame(width: 60, height: 60)
-                                .overlay(
-                                    Text("🐶")
-                                        .font(.title)
-                                )
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("\(petName) (\(ownerName)'s dog)")
-                                    .font(.headline)
-                                    .foregroundColor(Color(UIColor.darkGray))
-                                
-                                Text(appointmentTime)
-                                    .font(.subheadline)
-                                    .foregroundColor(.gray)
-                                
-                                Text(walkStarted ? "Walk in progress" : "Scheduled walk")
-                                    .font(.subheadline)
-                                    .foregroundColor(walkStarted ? Color.teal : Color.orange)
-                            }
-                            
-                            Spacer()
-                            
-                            Button(action: {
-                                showMessageComposer = true
-                            }) {
-                                Image(systemName: "message.fill")
-                                    .foregroundColor(.white)
-                                    .padding(10)
-                                    .background(Color.teal)
-                                    .cornerRadius(12)
-                            }
-                        }
-                        .padding()
-                        .background(Color.white)
-                        .cornerRadius(16)
-                        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+        NavigationView {
+            VStack(spacing: 0) {
+                // Header
+                HStack {
+                    Button(action: {
+                        // Dismiss the modal
+                        presentationMode.wrappedValue.dismiss()
+                    }) {
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(Color.teal)
+                            .font(.system(size: 18, weight: .semibold))
                     }
-                    .padding(.horizontal)
-                    .padding(.top, 8)
                     
-                    // Map View
-                    ZStack(alignment: .topTrailing) {
-                        Map(coordinateRegion: $region, annotationItems: walkStarted ? [WalkAnnotation(coordinate: currentLocation)] : []) { item in
-                            MapAnnotation(coordinate: item.coordinate) {
-                                VStack {
-                                    Image(systemName: "pawprint.fill")
-                                        .font(.system(size: 20))
-                                        .foregroundColor(.white)
-                                        .padding(6)
-                                        .background(Color.teal)
-                                        .clipShape(Circle())
-                                        .shadow(radius: 2)
+                    Spacer()
+                    
+                    Text(walkStarted ? "Walk in Progress" : "Start Your Walk")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Color(UIColor.darkGray))
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        // Help or settings
+                    }) {
+                        Image(systemName: "ellipsis")
+                            .foregroundColor(Color.gray)
+                            .font(.system(size: 18))
+                    }
+                }
+                .padding()
+                .background(Color.white)
+                .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+                
+                ScrollView {
+                    VStack(spacing: 16) {
+                        // Pet card - always visible
+                        VStack {
+                            HStack(alignment: .center, spacing: 12) {
+                                // Pet Image
+                                Circle()
+                                    .fill(Color.gray.opacity(0.2))
+                                    .frame(width: 60, height: 60)
+                                    .overlay(
+                                        Text("🐶")
+                                            .font(.title)
+                                    )
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("\(petName) (\(ownerName)'s dog)")
+                                        .font(.headline)
+                                        .foregroundColor(Color(UIColor.darkGray))
                                     
-                                    Text(petName)
-                                        .font(.caption2)
-                                        .fontWeight(.medium)
-                                        .padding(3)
-                                        .background(Color.white)
-                                        .cornerRadius(6)
-                                        .shadow(radius: 1)
+                                    Text(appointmentTime)
+                                        .font(.subheadline)
+                                        .foregroundColor(.gray)
+                                    
+                                    Text(walkStarted ? "Walk in progress" : "Scheduled walk")
+                                        .font(.subheadline)
+                                        .foregroundColor(walkStarted ? Color.teal : Color.orange)
                                 }
-                            }
-                        }
-                        .frame(height: 200)
-                        .cornerRadius(16)
-                        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
-                        .overlay(
-                            !walkStarted ?
-                            Text("Start the walk to track your route")
-                                .foregroundColor(.gray)
-                                .padding(8)
-                                .background(Color.white.opacity(0.8))
-                                .cornerRadius(8)
-                                .padding()
-                            : nil,
-                            alignment: .center
-                        )
-                        
-                        // Expand map button
-                        Button(action: {
-                            // Action to expand map to full screen
-                        }) {
-                            Image(systemName: "arrow.up.left.and.arrow.down.right")
-                                .padding(8)
-                                .background(Color.white)
-                                .clipShape(Circle())
-                                .shadow(radius: 2)
-                                .padding(8)
-                        }
-                    }
-                    .padding(.horizontal)
-                    
-                    if walkStarted {
-                        // Walk stats card - visible when walk started
-                        VStack(spacing: 0) {
-                            // Section title
-                            HStack {
-                                Text("Current Walk Stats")
-                                    .font(.headline)
-                                    .foregroundColor(Color(UIColor.darkGray))
+                                
                                 Spacer()
-                            }
-                            .padding(.horizontal)
-                            .padding(.top)
-                            .padding(.bottom, 8)
-                            
-                            // Stats grid
-                            HStack {
-                                WalkStatView(
-                                    icon: "clock.fill",
-                                    value: formattedDuration,
-                                    label: "Duration"
-                                )
                                 
-                                Divider()
-                                    .frame(height: 40)
-                                
-                                WalkStatView(
-                                    icon: "figure.walk",
-                                    value: String(format: "%.2f", walkDistance),
-                                    label: "Miles"
-                                )
-                                
-                                Divider()
-                                    .frame(height: 40)
-                                
-                                WalkStatView(
-                                    icon: "pawprint.fill",
-                                    value: "\(pottyBreaks)",
-                                    label: "Potty Breaks"
-                                )
+                                Button(action: {
+                                    showMessageComposer = true
+                                }) {
+                                    Image(systemName: "message.fill")
+                                        .foregroundColor(.white)
+                                        .padding(10)
+                                        .background(Color.teal)
+                                        .cornerRadius(12)
+                                }
                             }
                             .padding()
                             .background(Color.white)
@@ -222,160 +128,268 @@ struct WalkerDuringWalkView: View {
                             .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
                         }
                         .padding(.horizontal)
+                        .padding(.top, 8)
                         
-                        // Quick action buttons (only during walk)
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 12) {
-                                ActivityButton(
-                                    icon: "exclamationmark.circle.fill",
-                                    label: "Potty Break",
-                                    color: .yellow
-                                ) {
-                                    logActivity(.pottyBreak)
-                                }
-                                
-                                ActivityButton(
-                                    icon: "drop.fill",
-                                    label: "Water Break",
-                                    color: .blue
-                                ) {
-                                    logActivity(.waterBreak)
-                                }
-                                
-                                ActivityButton(
-                                    icon: "birthday.cake.fill",
-                                    label: "Treat Given",
-                                    color: .orange
-                                ) {
-                                    logActivity(.treatGiven)
-                                }
-                                
-                                ActivityButton(
-                                    icon: "camera.fill",
-                                    label: "Take Photo",
-                                    color: .purple
-                                ) {
-                                    logActivity(.photo)
-                                }
-                                
-                                ActivityButton(
-                                    icon: "exclamationmark.triangle.fill",
-                                    label: "Issue",
-                                    color: .red
-                                ) {
-                                    logActivity(.issue)
+                        // Map View
+                        ZStack(alignment: .topTrailing) {
+                            Map(coordinateRegion: $region, annotationItems: walkStarted ? [WalkAnnotation(coordinate: currentLocation)] : []) { item in
+                                MapAnnotation(coordinate: item.coordinate) {
+                                    VStack {
+                                        Image(systemName: "pawprint.fill")
+                                            .font(.system(size: 20))
+                                            .foregroundColor(.white)
+                                            .padding(6)
+                                            .background(Color.teal)
+                                            .clipShape(Circle())
+                                            .shadow(radius: 2)
+                                        
+                                        Text(petName)
+                                            .font(.caption2)
+                                            .fontWeight(.medium)
+                                            .padding(3)
+                                            .background(Color.white)
+                                            .cornerRadius(6)
+                                            .shadow(radius: 1)
+                                    }
                                 }
                             }
-                            .padding(.horizontal)
-                        }
-                        .padding(.vertical, 8)
-                        
-                        // Activity timeline
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Activity Timeline")
-                                .font(.headline)
-                                .foregroundColor(Color(UIColor.darkGray))
-                                .padding(.horizontal)
-                            
-                            if activityLog.isEmpty {
-                                Text("No activities recorded yet")
+                            .frame(height: 200)
+                            .cornerRadius(16)
+                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                            .overlay(
+                                !walkStarted ?
+                                Text("Start the walk to track your route")
                                     .foregroundColor(.gray)
+                                    .padding(8)
+                                    .background(Color.white.opacity(0.8))
+                                    .cornerRadius(8)
                                     .padding()
-                                    .frame(maxWidth: .infinity)
+                                : nil,
+                                alignment: .center
+                            )
+                            
+                            // Expand map button
+                            Button(action: {
+                                // Action to expand map to full screen
+                            }) {
+                                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                    .padding(8)
+                                    .background(Color.white)
+                                    .clipShape(Circle())
+                                    .shadow(radius: 2)
+                                    .padding(8)
+                            }
+                        }
+                        .padding(.horizontal)
+                        
+                        if walkStarted {
+                            // Walk stats card - visible when walk started
+                            VStack(spacing: 0) {
+                                // Section title
+                                HStack {
+                                    Text("Current Walk Stats")
+                                        .font(.headline)
+                                        .foregroundColor(Color(UIColor.darkGray))
+                                    Spacer()
+                                }
+                                .padding(.horizontal)
+                                .padding(.top)
+                                .padding(.bottom, 8)
+                                
+                                // Stats grid
+                                HStack {
+                                    WalkStatView(
+                                        icon: "clock.fill",
+                                        value: formattedDuration,
+                                        label: "Duration"
+                                    )
+                                    
+                                    Divider()
+                                        .frame(height: 40)
+                                    
+                                    WalkStatView(
+                                        icon: "figure.walk",
+                                        value: String(format: "%.2f", walkDistance),
+                                        label: "Miles"
+                                    )
+                                    
+                                    Divider()
+                                        .frame(height: 40)
+                                    
+                                    WalkStatView(
+                                        icon: "pawprint.fill",
+                                        value: "\(pottyBreaks)",
+                                        label: "Potty Breaks"
+                                    )
+                                }
+                                .padding()
+                                .background(Color.white)
+                                .cornerRadius(16)
+                                .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+                            }
+                            .padding(.horizontal)
+                            
+                            // Quick action buttons (only during walk)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 12) {
+                                    ActivityButton(
+                                        icon: "exclamationmark.circle.fill",
+                                        label: "Potty Break",
+                                        color: .yellow
+                                    ) {
+                                        logActivity(.pottyBreak)
+                                    }
+                                    
+                                    ActivityButton(
+                                        icon: "drop.fill",
+                                        label: "Water Break",
+                                        color: .blue
+                                    ) {
+                                        logActivity(.waterBreak)
+                                    }
+                                    
+                                    ActivityButton(
+                                        icon: "birthday.cake.fill",
+                                        label: "Treat Given",
+                                        color: .orange
+                                    ) {
+                                        logActivity(.treatGiven)
+                                    }
+                                    
+                                    ActivityButton(
+                                        icon: "camera.fill",
+                                        label: "Take Photo",
+                                        color: .purple
+                                    ) {
+                                        logActivity(.photo)
+                                    }
+                                    
+                                    ActivityButton(
+                                        icon: "exclamationmark.triangle.fill",
+                                        label: "Issue",
+                                        color: .red
+                                    ) {
+                                        logActivity(.issue)
+                                    }
+                                }
+                                .padding(.horizontal)
+                            }
+                            .padding(.vertical, 8)
+                            
+                            // Activity timeline
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Activity Timeline")
+                                    .font(.headline)
+                                    .foregroundColor(Color(UIColor.darkGray))
+                                    .padding(.horizontal)
+                                
+                                if activityLog.isEmpty {
+                                    Text("No activities recorded yet")
+                                        .foregroundColor(.gray)
+                                        .padding()
+                                        .frame(maxWidth: .infinity)
+                                        .background(Color.white)
+                                        .cornerRadius(16)
+                                        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+                                        .padding(.horizontal)
+                                } else {
+                                    VStack(spacing: 0) {
+                                        ForEach(0..<activityLog.count, id: \.self) { index in
+                                            TimelineItemView(
+                                                time: timeString(from: activityLog[index].timestamp),
+                                                activity: activityLog[index].type.description,
+                                                icon: activityLog[index].type.icon,
+                                                iconColor: activityLog[index].type.color
+                                            )
+                                            
+                                            if index < activityLog.count - 1 {
+                                                TimelineSeparator()
+                                            }
+                                        }
+                                    }
+                                    .padding(.vertical, 12)
                                     .background(Color.white)
                                     .cornerRadius(16)
                                     .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
                                     .padding(.horizontal)
-                            } else {
-                                VStack(spacing: 0) {
-                                    ForEach(0..<activityLog.count, id: \.self) { index in
-                                        TimelineItemView(
-                                            time: timeString(from: activityLog[index].timestamp),
-                                            activity: activityLog[index].type.description,
-                                            icon: activityLog[index].type.icon,
-                                            iconColor: activityLog[index].type.color
-                                        )
-                                        
-                                        if index < activityLog.count - 1 {
-                                            TimelineSeparator()
-                                        }
-                                    }
                                 }
-                                .padding(.vertical, 12)
-                                .background(Color.white)
-                                .cornerRadius(16)
-                                .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
-                                .padding(.horizontal)
                             }
                         }
-                    }
-                    
-                    // Bottom buttons based on state
-                    if walkStarted {
-                        // During walk buttons
-                        HStack(spacing: 16) {
+                        
+                        // Bottom buttons based on state
+                        if walkStarted {
+                            // During walk buttons
+                            HStack(spacing: 16) {
+                                Button(action: {
+                                    isWalking.toggle()
+                                }) {
+                                    Text(isWalking ? "Pause Walk" : "Resume Walk")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.white)
+                                        .frame(height: 50)
+                                        .frame(maxWidth: .infinity)
+                                        .background(isWalking ? Color.orange : Color.teal)
+                                        .cornerRadius(12)
+                                }
+                                
+                                Button(action: {
+                                    // End walk and show payment view
+                                    endWalk()
+                                    showPaymentView = true
+                                }) {
+                                    Text("End Walk")
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.white)
+                                        .frame(height: 50)
+                                        .frame(maxWidth: .infinity)
+                                        .background(Color.red)
+                                        .cornerRadius(12)
+                                }
+                            }
+                            .padding(.horizontal)
+                            .padding(.bottom, 20)
+                        } else {
+                            // Start walk button
                             Button(action: {
-                                isWalking.toggle()
+                                startWalk()
                             }) {
-                                Text(isWalking ? "Pause Walk" : "Resume Walk")
+                                Text("Start Walk")
                                     .font(.headline)
                                     .fontWeight(.semibold)
                                     .foregroundColor(.white)
                                     .frame(height: 50)
                                     .frame(maxWidth: .infinity)
-                                    .background(isWalking ? Color.orange : Color.teal)
+                                    .background(Color.teal)
                                     .cornerRadius(12)
                             }
-                            
-                            Button(action: {
-                                // End walk
-                                endWalk()
-                            }) {
-                                Text("End Walk")
-                                    .font(.headline)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.white)
-                                    .frame(height: 50)
-                                    .frame(maxWidth: .infinity)
-                                    .background(Color.red)
-                                    .cornerRadius(12)
-                            }
+                            .padding(.horizontal)
+                            .padding(.bottom, 20)
                         }
-                        .padding(.horizontal)
-                        .padding(.bottom, 20)
-                    } else {
-                        // Start walk button
-                        Button(action: {
-                            startWalk()
-                        }) {
-                            Text("Start Walk")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.white)
-                                .frame(height: 50)
-                                .frame(maxWidth: .infinity)
-                                .background(Color.teal)
-                                .cornerRadius(12)
-                        }
-                        .padding(.horizontal)
-                        .padding(.bottom, 20)
                     }
+                    .padding(.top, 16)
                 }
-                .padding(.top, 16)
             }
-        }
-        .sheet(isPresented: $showMessageComposer) {
-            MessageComposerView(petName: petName, ownerName: ownerName, messageText: $messageText, onSend: sendMessage)
-        }
-        .sheet(isPresented: $showActivityPopup) {
-            if let activity = selectedActivity {
-                ActivityDetailView(activity: activity, onSave: { notes in
-                    saveActivityDetail(activity: activity, notes: notes)
-                })
+            .navigationBarHidden(true)
+            .sheet(isPresented: $showPaymentView) {
+                NavigationView {
+                    PaymentView()
+                }
             }
-        }
-        .onDisappear {
-            timer?.invalidate()
+            .sheet(isPresented: $showMessageComposer) {
+                MessageComposerView(petName: petName, ownerName: ownerName, messageText: $messageText, onSend: sendMessage)
+            }
+            .sheet(isPresented: $showActivityPopup) {
+                if let activity = selectedActivity {
+                    ActivityDetailView(activity: activity, onSave: { notes in
+                        saveActivityDetail(activity: activity, notes: notes)
+                    })
+                }
+            }
+            .onDisappear {
+                timer?.invalidate()
+            }
         }
     }
     

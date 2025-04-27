@@ -13,7 +13,11 @@ struct HomeView: View {
     @State private var showProfileModal = false
     @State private var showAllWalkersModal = false
     @State private var showFutureWalksModal = false
-    @State private var showProfileDogWalkerModal = false  // New state variable for ProfileDogWalker modal
+    @State private var showProfileDogWalkerModal = false
+    @State private var showPastWalksModal = false
+    @State private var showAcceptedChatsOwner = false
+
+    
     
     var body: some View {
         VStack(spacing: 0) {
@@ -107,7 +111,7 @@ struct HomeView: View {
                         
                         // Past Walks Option (New)
                         Button(action: {
-                            // Action for Past Walks button
+                            showPastWalksModal = true
                         }) {
                             QuickOptionButton(
                                 icon: "clock.arrow.circlepath",
@@ -130,7 +134,7 @@ struct HomeView: View {
                             
                             // Expand button
                             Button(action: {
-                                showAllWalkersModal = true
+                                showPastWalksModal = true
                             }) {
                                 Text("See All")
                                     .font(.subheadline)
@@ -167,16 +171,18 @@ struct HomeView: View {
                 // Your profile editing view would go here
             }
             .sheet(isPresented: $showAllWalkersModal) {
-                Text("All Recent Walkers")
-                    .font(.title)
-                    .padding()
-                // Your full walkers list would go here
             }
             .sheet(isPresented: $showFutureWalksModal) {
                 FutureWalksView()
             }
             .sheet(isPresented: $showProfileDogWalkerModal) {
                 DogWalkerProfileView()  // Present the ProfileDogWalker view
+            }
+            .sheet(isPresented: $showPastWalksModal) {
+                PastWalksView()  // Connect to your existing PastWalksView
+            }
+            .sheet(isPresented: $showAcceptedChatsOwner) {
+                BligView()
             }
             
             // Bottom Navigation
@@ -196,10 +202,11 @@ struct HomeView: View {
                 
                 TabButton(image: "message", title: "Messages", isSelected: selectedTab == "messages") {
                     selectedTab = "messages"
+                    showAcceptedChatsOwner = true
                 }
                 
-                TabButton(image: "person", title: "Profile", isSelected: selectedTab == "profile") {
-                    selectedTab = "profile"
+                TabButton(image: "person", title: "Settings", isSelected: selectedTab == "settings") {
+                    selectedTab = "settings"
                 }
             }
             .padding(.top, 8)

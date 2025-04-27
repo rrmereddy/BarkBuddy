@@ -15,6 +15,7 @@ struct DogWalker: Identifiable {
 }
 
 struct DogWalkerProfileView: View {
+    @Environment(\.presentationMode) var presentationMode
     @State private var dogWalkers: [DogWalker] = [
         DogWalker(
             name: "Sarah Johnson",
@@ -66,10 +67,21 @@ struct DogWalkerProfileView: View {
         VStack {
             // Header
             HStack {
+                Button(action: {
+                    presentationMode.wrappedValue.dismiss()
+                }) {
+                    Image(systemName: "arrow.left")
+                        .font(.system(size: 22))
+                        .foregroundColor(.blue)
+                }
+                
                 Text("Dog Walkers")
                     .font(.largeTitle)
                     .fontWeight(.bold)
+                    .padding(.leading, 8)
+                
                 Spacer()
+                
                 Button(action: {
                     // Filter action
                 }) {

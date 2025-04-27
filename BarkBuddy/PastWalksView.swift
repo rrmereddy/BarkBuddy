@@ -11,6 +11,7 @@ struct PastWalksView: View {
     @State private var selectedWalk: Walk?
     @State private var showingDetail = false
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.presentationMode) private var presentationMode
     
     // Sample data
     let walks = [
@@ -61,6 +62,7 @@ struct PastWalksView: View {
         )
     ]
     
+    
     var body: some View {
         NavigationView {
             List {
@@ -74,11 +76,22 @@ struct PastWalksView: View {
                 }
             }
             .navigationTitle("Past Walks")
+            .navigationBarItems(
+                leading: Button(action: {
+                    presentationMode.wrappedValue.dismiss()
+                }) {
+                    HStack(spacing: 3) {
+                        Image(systemName: "chevron.left")
+                        Text("Back")
+                    }
+                }
+            )
             .sheet(isPresented: $showingDetail) {
                 if let walk = selectedWalk {
                     WalkDetailView(walk: walk)
                         .edgesIgnoringSafeArea(.bottom)
                 }
+                
             }
         }
     }

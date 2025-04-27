@@ -123,8 +123,49 @@ struct DogOwnerChatView: View {
                         // Bottom navigation bar
                         BottomNavBar(selectedTab: 2)
                     } else {
-                        // Detail view when chat is selected
-                        WalkerChatDetailView(chat: $selectedChat, messageText: $messageText)
+                        // Entire modal view with back button
+                        VStack(spacing: 0) {
+                            // Back button header for the entire modal
+                            HStack {
+                                Button(action: {
+                                    // Dismiss modal by setting selectedChat to nil
+                                    selectedChat = nil
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "arrow.left")
+                                            .font(.system(size: 18))
+                                        
+                                        Text("Back")
+                                            .font(.system(size: 16, weight: .medium))
+                                    }
+                                    .foregroundColor(ColorUtils.colorFromHex("6B7AFF"))
+                                }
+                                
+                                Spacer()
+                                
+                                Text(selectedChat?.walkerName ?? "")
+                                    .font(.system(size: 16, weight: .semibold))
+                                
+                                Spacer()
+                                
+                                Button(action: {
+                                    // Call action
+                                }) {
+                                    Image(systemName: "phone.fill")
+                                        .font(.system(size: 20))
+                                        .foregroundColor(ColorUtils.colorFromHex("6B7AFF"))
+                                        .padding(8)
+                                        .background(ColorUtils.colorFromHex("E8EAFF"))
+                                        .clipShape(Circle())
+                                }
+                            }
+                            .padding()
+                            .background(Color.white)
+                            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+                            
+                            // Chat detail view
+                            WalkerChatDetailView(chat: $selectedChat, messageText: $messageText)
+                        }
                     }
                 }
             }
@@ -250,23 +291,14 @@ struct WalkerChatDetailView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Chat header
-            HStack {
-                Button(action: {
-                    chat = nil
-                }) {
-                    Image(systemName: "arrow.left")
-                        .font(.system(size: 20))
-                        .foregroundColor(ColorUtils.colorFromHex("6B7AFF"))
-                }
-                
+            // Profile info section
+            HStack(spacing: 12) {
                 Image(systemName: "person.circle.fill")
                     .resizable()
                     .frame(width: 40, height: 40)
                     .foregroundColor(ColorUtils.colorFromHex("6B7AFF"))
-                    .padding(.leading, 8)
                 
-                VStack(alignment: .leading) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(chat?.walkerName ?? "")
                         .font(.system(size: 16, weight: .semibold))
                     
@@ -276,21 +308,9 @@ struct WalkerChatDetailView: View {
                 }
                 
                 Spacer()
-                
-                Button(action: {
-                    // Call action
-                }) {
-                    Image(systemName: "phone.fill")
-                        .font(.system(size: 20))
-                        .foregroundColor(ColorUtils.colorFromHex("6B7AFF"))
-                        .padding(8)
-                        .background(ColorUtils.colorFromHex("E8EAFF"))
-                        .clipShape(Circle())
-                }
             }
-            .padding()
-            .background(Color.white)
-            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+            .padding(.horizontal)
+            .padding(.top, 8)
             
             // Walk info card
             VStack(alignment: .leading, spacing: 6) {
@@ -495,7 +515,6 @@ struct ColorUtils {
     }
 }
 
-
 struct BligView: View {
     var body: some View {
         AcceptedChatView()
@@ -505,5 +524,11 @@ struct BligView: View {
 struct BligView_Previews: PreviewProvider {
     static var previews: some View {
         BligView()
+    }
+}
+
+struct new_AcceptedChatView: View {
+    var body: some View {
+        DogOwnerChatView()
     }
 }

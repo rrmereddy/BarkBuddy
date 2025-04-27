@@ -12,6 +12,7 @@ struct FutureWalksView: View {
     @State private var calendarViewMode: CalendarViewMode = .week
     @State private var selectedDate = Date()
     @State private var walks: [DogWalk] = sampleWalks
+    @Environment(\.presentationMode) private var presentationMode
     
     // MARK: - Body
     var body: some View {
@@ -53,7 +54,15 @@ struct FutureWalksView: View {
             }
             .navigationTitle("Upcoming Walks")
             .navigationBarItems(
-                trailing: todayButton
+                leading: Button(action: {
+                        presentationMode.wrappedValue.dismiss()
+                    }) {
+                        HStack {
+                            Image(systemName: "chevron.left")
+                            Text("Back")
+                        }
+                    },
+                    trailing: todayButton
             )
         }
     }

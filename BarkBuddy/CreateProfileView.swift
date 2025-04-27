@@ -7,6 +7,25 @@
 
 import SwiftUI
 import PhotosUI
+import Firebase
+import FirebaseFirestore
+import FirebaseStorage
+
+// User type enum
+enum UserType {
+    case user
+    case walker
+    
+    //temporary! We have no way to pull specific userID rn
+    var documentId: String {
+        switch self {
+        case .user:
+            return "6cxigz0LIPxAu9b5J0Lp"
+        case .walker:
+            return "CaXIIozHXL3W34RVz1iq"
+        }
+    }
+}
 
 struct CreateProfileView: View {
     // User profile data
@@ -14,6 +33,14 @@ struct CreateProfileView: View {
     @State private var name: String = ""
     @State private var bio: String = ""
     @State private var pets: [Pet] = []
+    @State private var userType: UserType = .user
+    
+    // Firebase references
+    private let db = Firestore.firestore()
+    private let storage = Storage.storage()
+    
+    // States
+    @State private var isLoading = false
     
     // Photo picker
     @State private var isShowingPhotoPicker = false
@@ -23,6 +50,8 @@ struct CreateProfileView: View {
     @State private var isShowingAddPetSheet = false
     @State private var newPetName = ""
     @State private var newPetBreed = ""
+    @State private var otherInfo = ""
+    @State private var temperament = ""
     
     // Alert states
     @State private var showingSaveAlert = false
@@ -33,6 +62,14 @@ struct CreateProfileView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
+                    // User Type Selector
+                    Picker("User Type", selection: $userType) {
+                        Text("Pet Owner").tag(UserType.user)
+                        Text("Walker").tag(UserType.walker)
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .padding(.horizontal)
+                    
                     // Profile Photo Section
                     VStack {
                         ZStack {
@@ -91,53 +128,61 @@ struct CreateProfileView: View {
                     }
                     .padding(.horizontal)
                     
-                    // Pets Section
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            Text("My Pets")
-                                .font(.title2)
-                                .fontWeight(.bold)
-                            
-                            Spacer()
-                            
-                            Button(action: {
-                                isShowingAddPetSheet = true
-                            }) {
-                                Text("+ Add Pet")
-                                    .foregroundColor(.blue)
-                            }
-                        }
-                        
-                        if pets.isEmpty {
+                    // Pets Section (only show for regular users)
+                    if userType == .user {
+                        VStack(alignment: .leading, spacing: 10) {
                             HStack {
+                                Text("My Pets")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                
                                 Spacer()
-                                Text("No pets added yet")
-                                    .foregroundColor(.gray)
-                                    .padding(.vertical, 20)
-                                Spacer()
+                                
+                                Button(action: {
+                                    isShowingAddPetSheet = true
+                                }) {
+                                    Text("+ Add Pet")
+                                        .foregroundColor(.blue)
+                                }
                             }
-                        } else {
-                            ForEach(pets) { pet in
-                                PetRowView(pet: pet) {
-                                    if let index = pets.firstIndex(where: { $0.id == pet.id }) {
-                                        pets.remove(at: index)
+                            
+                            if pets.isEmpty {
+                                HStack {
+                                    Spacer()
+                                    Text("No pets added yet")
+                                        .foregroundColor(.gray)
+                                        .padding(.vertical, 20)
+                                    Spacer()
+                                }
+                            } else {
+                                ForEach(pets) { pet in
+                                    PetRowView(pet: pet) {
+                                        if let index = pets.firstIndex(where: { $0.id == pet.id }) {
+                                            pets.remove(at: index)
+                                        }
                                     }
                                 }
                             }
                         }
+                        .padding(.horizontal)
                     }
-                    .padding(.horizontal)
                     
                     // Save Button
                     Button(action: saveProfile) {
-                        Text("Save Profile")
-                            .fontWeight(.semibold)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.blue)
-                            .cornerRadius(10)
+                        if isLoading {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        } else {
+                            Text("Save Profile")
+                                .fontWeight(.semibold)
+                        }
                     }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.blue)
+                    .cornerRadius(10)
+                    .disabled(isLoading)
                     .padding(.horizontal, 40)
                     .padding(.top, 10)
                     .padding(.bottom, 20)
@@ -167,6 +212,8 @@ struct CreateProfileView: View {
                 Section {
                     TextField("Pet's Name", text: $newPetName)
                     TextField("Pet's Breed", text: $newPetBreed)
+                    TextField("Pet's Temperament", text: $temperament)
+                    TextField("Any Other Info?", text: $otherInfo)
                 }
             }
             .navigationTitle("Add New Pet")
@@ -187,7 +234,7 @@ struct CreateProfileView: View {
                 }
             }
         }
-        .presentationDetents([.height(200)])
+        .presentationDetents([.height(300)])
     }
     
     // MARK: - Functions
@@ -211,7 +258,7 @@ struct CreateProfileView: View {
             return
         }
         
-        let newPet = Pet(name: newPetName, breed: newPetBreed)
+        let newPet = Pet(name: newPetName, breed: newPetBreed, temperament: temperament, otherInfo: otherInfo)
         pets.append(newPet)
         
         isShowingAddPetSheet = false
@@ -221,29 +268,108 @@ struct CreateProfileView: View {
     func resetPetForm() {
         newPetName = ""
         newPetBreed = ""
+        temperament = ""
+        otherInfo = ""
     }
     
     func saveProfile() {
-        // Here you would implement the logic to save the profile data
-        // For example, uploading to your API or storing locally
-        
-        // Validate required fields (if applicable)
+        // Validate required fields
         guard !name.isEmpty else {
             errorMessage = "Please enter your name"
             showingErrorAlert = true
             return
         }
         
-        // Show success message
-        showingSaveAlert = true
+        isLoading = true
+        
+        // Get the document ID based on user type
+        let documentId = userType.documentId
+        
+        // First upload image if exists
+        if let profileImage = profileImage, let imageData = profileImage.jpegData(compressionQuality: 0.8) {
+            let storageRef = storage.reference().child("profile_images/\(documentId).jpg")
+            
+            let uploadTask = storageRef.putData(imageData, metadata: nil) { metadata, error in
+                if let error = error {
+                    DispatchQueue.main.async {
+                        isLoading = false
+                        errorMessage = "Error uploading image: \(error.localizedDescription)"
+                        showingErrorAlert = true
+                    }
+                    return
+                }
+                
+                // Get download URL
+                storageRef.downloadURL { url, error in
+                    if let error = error {
+                        DispatchQueue.main.async {
+                            isLoading = false
+                            errorMessage = "Error getting image URL: \(error.localizedDescription)"
+                            showingErrorAlert = true
+                        }
+                        return
+                    }
+                    
+                    if let photoURL = url?.absoluteString {
+                        // Save user data with photo URL
+                        saveUserDataToFirestore(documentId: documentId, photoURL: photoURL)
+                    }
+                }
+            }
+        } else {
+            // No profile image, just save user data
+            saveUserDataToFirestore(documentId: documentId, photoURL: nil)
+        }
+    }
+    
+    func saveUserDataToFirestore(documentId: String, photoURL: String?) {
+        // Create data dictionary to match your specified field mappings
+        var userData: [String: Any] = [
+            "first": name,
+            "bio": bio
+        ]
+        
+        // Add photo URL if available
+        if let photoURL = photoURL {
+            userData["photo"] = photoURL
+        }
+        
+        // Add pets data for user type
+        if userType == .user && !pets.isEmpty {
+            let petsData = pets.map { pet -> [String: String] in
+                return [
+                    "name": pet.name,
+                    "breed": pet.breed,
+                    "temperament": pet.temperament,
+                    "otherInfo": pet.otherInfo
+                ]
+            }
+            userData["pets"] = petsData
+        }
+        
+        // Update the document in Firestore
+        db.collection("users").document(documentId).setData(userData, merge: true) { error in
+            DispatchQueue.main.async {
+                isLoading = false
+                
+                if let error = error {
+                    errorMessage = "Error saving profile: \(error.localizedDescription)"
+                    showingErrorAlert = true
+                } else {
+                    showingSaveAlert = true
+                }
+            }
+        }
     }
 }
 
 // MARK: - Pet Model
-struct Pet: Identifiable {
+struct Pet: Identifiable, Codable {
     let id = UUID()
     let name: String
     let breed: String
+    let temperament: String
+    let otherInfo: String
 }
 
 // MARK: - Pet Row View

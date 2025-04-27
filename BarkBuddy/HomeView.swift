@@ -243,12 +243,6 @@ struct new_TabButton: View {
     }
 }
 
-struct new_ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
-    }
-}
-
 #Preview{
     ClaudeUI()
 }

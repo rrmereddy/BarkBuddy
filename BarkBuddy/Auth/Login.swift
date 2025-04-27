@@ -157,7 +157,7 @@ struct LoginView: View {
             }
             
             // Successfully logged in, navigate to main app view
-            // This would be handled by your app's authentication state observer
+            
         }
     }
     

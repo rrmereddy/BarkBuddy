@@ -15,7 +15,7 @@ struct BarkBuddyApp: App {
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            LoginView()
         }
     }
 }

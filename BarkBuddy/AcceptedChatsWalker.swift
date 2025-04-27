@@ -10,6 +10,7 @@ struct AcceptedChatView: View {
     @State private var searchText = ""
     @State private var selectedChat: Chat?
     @State private var messageText = ""
+    @Environment(\.presentationMode) var presentationMode
     
     // Sample data
     let chats = [
@@ -39,6 +40,15 @@ struct AcceptedChatView: View {
                 VStack(spacing: 0) {
                     // Header
                     HStack {
+                        Button(action: {
+                            presentationMode.wrappedValue.dismiss()
+                        }) {
+                            Image(systemName: "arrow.left")
+                                .font(.system(size: 20))
+                                .foregroundColor(Color(hex: "FF6B6B"))
+                                .padding(.trailing, 4)
+                        }
+                        
                         Text("BarkBuddy")
                             .font(.system(size: 28, weight: .bold))
                             .foregroundColor(Color(hex: "FF6B6B"))

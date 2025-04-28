@@ -8,10 +8,20 @@ struct LoginView: View {
     @State private var isLoggingIn = false
     @State private var showAlert = false
     @State private var alertMessage = ""
-    @State private var navigateToSignUp = false
     
+    // <-- New state to trigger navigation
+    @State private var isLoggedIn = false
+
     var body: some View {
         NavigationStack {
+            // Hidden NavigationLink that activates when isLoggedIn becomes true
+            NavigationLink(
+                destination: HomeView(),
+                isActive: $isLoggedIn
+            ) {
+                EmptyView()
+            }
+            
             ZStack {
                 Color(.systemBackground)
                     .ignoresSafeArea()
@@ -68,7 +78,6 @@ struct LoginView: View {
                         .opacity((email.isEmpty || password.isEmpty || isLoggingIn) ? 0.6 : 1)
                         
                         Button("Forgot Password?") {
-                            // Handle password reset
                             if !email.isEmpty {
                                 sendPasswordReset()
                             } else {
@@ -156,19 +165,17 @@ struct LoginView: View {
                 return
             }
             
-            // Successfully logged in, navigate to main app view
-            
+            // Successfully logged in → trigger navigation
+            isLoggedIn = true
         }
     }
     
     private func handleGoogleSignIn() {
-        // Implement Google Sign In
         alertMessage = "Google Sign In will be implemented with Firebase Auth"
         showAlert = true
     }
     
     private func handleAppleSignIn() {
-        // Implement Apple Sign In
         alertMessage = "Apple Sign In will be implemented with Firebase Auth"
         showAlert = true
     }

@@ -9,6 +9,9 @@
 import SwiftUI
 
 struct PaymentView: View {
+    // Environment variable for dismissing the view
+    @Environment(\.presentationMode) var presentationMode
+    
     // Walker and walk details
     let walkerName = "Alex"
     let dogName = "Buddy"
@@ -246,6 +249,17 @@ struct PaymentView: View {
             .padding()
         }
         .navigationTitle("Payment")
+        .navigationBarBackButtonHidden(true)
+        .navigationBarItems(leading: Button(action: {
+            presentationMode.wrappedValue.dismiss()
+        }) {
+            HStack {
+                Image(systemName: "chevron.left")
+                    .foregroundColor(.blue)
+                Text("Back")
+                    .foregroundColor(.blue)
+            }
+        })
         .safeAreaInset(edge: .bottom) {
             Button(action: {
                 showPaymentSuccess = true

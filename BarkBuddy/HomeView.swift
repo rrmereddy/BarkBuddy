@@ -16,6 +16,8 @@ struct HomeView: View {
     @State private var showProfileDogWalkerModal = false
     @State private var showPastWalksModal = false
     @State private var showAcceptedChatsOwner = false
+    @State private var showUserDuringWalkView = false
+    @State private var showWalkerDuringWalkView = false
 
     
     
@@ -120,6 +122,30 @@ struct HomeView: View {
                                 color: .purple
                             )
                         }
+                        
+                        // User During Walk View Option (New)
+                        Button(action: {
+                            showUserDuringWalkView = true
+                        }) {
+                            QuickOptionButton(
+                                icon: "figure.walk",
+                                title: "Track Current Walk",
+                                description: "See your dog's active walk",
+                                color: .green
+                            )
+                        }
+                        
+                        // Walker During Walk View Option (New)
+                        Button(action: {
+                            showWalkerDuringWalkView = true
+                        }) {
+                            QuickOptionButton(
+                                icon: "person.fill.and.arrow.left.and.arrow.right",
+                                title: "Walker Mode",
+                                description: "Start or continue a dog walk",
+                                color: .orange
+                            )
+                        }
                     }
                     
                     // Recent Walkers (Renamed from Top Walkers Nearby)
@@ -183,6 +209,12 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showAcceptedChatsOwner) {
                 BligView()
+            }
+            .sheet(isPresented: $showUserDuringWalkView) {
+                PetOwnerWalkView()  // Present the UserDuringWalkView
+            }
+            .sheet(isPresented: $showWalkerDuringWalkView) {
+                WalkerDuringWalkView()  // Present the WalkerDuringWalkView
             }
             
             // Bottom Navigation

@@ -72,3 +72,11 @@ class Walker {
     } //end of walker class
 // this class will need to be connected to firebase
 // going to need some functions to calculate availability
+
+//enum UserType: String, CaseIterable, Identifiable {
+//    case dogOwner = "Dog Owner"
+//    case dogWalker = "Dog Walker"
+//    
+//    var id: String { self.rawValue }
+//}
+

@@ -273,3 +273,11 @@ struct UserProfile: View {
         }
     }
 }
+
+struct UserProfileSetupView_Previews: PreviewProvider {
+    static var previews: some View {
+        NavigationView {
+            UserProfile(userId: "97xAJ9gTauXZlyUDOzi2ASWse5R2")
+        }
+    }
+}

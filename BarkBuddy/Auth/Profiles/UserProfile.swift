@@ -29,159 +29,70 @@ struct UserProfile: View {
     @State private var dogSize = "Medium"
     @State private var dogTemperament = ""
     @State private var specialInstructions = ""
+    @State private var completed: Bool = false
     
     let dogSizeOptions = ["Small", "Medium", "Large", "Extra Large"]
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 25) {
-                // Header
-                VStack(spacing: 10) {
-                    Text("Complete Your Profile")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                    
-                    Text("Tell us about you and your dog")
-                        .foregroundColor(.gray)
+        VStack{
+            NavigationLink(
+                destination: HomeView(),
+                isActive: $completed,
+                label: {
+                    EmptyView()
                 }
-                .padding(.top, 30)
-                
-                // Profile Picture
-                Button(action: {
-                    showImagePicker = true
-                }) {
-                    VStack {
-                        if let image = profileImage {
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 120, height: 120)
-                                .clipShape(Circle())
-                        } else {
-                            Image(systemName: "person.circle.fill")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 120, height: 120)
-                                .foregroundColor(.gray)
-                        }
-                        
-                        Text("Add Profile Photo")
-                            .font(.footnote)
-                            .foregroundColor(.blue)
-                            .padding(.top, 5)
-                    }
-                }
-                
-                // Owner Profile Form
-                VStack(spacing: 15) {
-                    // Bio
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("About You")
-                            .font(.headline)
-                            .padding(.leading, 2)
-                        
-                        TextEditor(text: $bio)
-                            .frame(height: 120)
-                            .padding(10)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(10)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .stroke(Color(.systemGray4), lineWidth: 1)
-                            )
-                    }
+            )
+            .hidden()
+            ScrollView {
+                VStack(spacing: 25) {
                     
-                    // Contact Information
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("Contact Information")
-                            .font(.headline)
-                            .padding(.leading, 2)
+                    // Header
+                    VStack(spacing: 10) {
+                        Text("Complete Your Profile")
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
                         
-                        TextField("Phone Number", text: $phoneNumber)
-                            .keyboardType(.phonePad)
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .cornerRadius(10)
+                        Text("Tell us about you and your dog")
+                            .foregroundColor(.gray)
                     }
+                    .padding(.top, 30)
                     
-                    // Address
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("Address")
-                            .font(.headline)
-                            .padding(.leading, 2)
-                        
-                        TextField("Street Address", text: $address)
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .cornerRadius(10)
-                        
-                        HStack(spacing: 10) {
-                            TextField("City", text: $city)
-                                .padding()
-                                .background(Color(.systemGray6))
-                                .cornerRadius(10)
-                            
-                            TextField("State", text: $state)
-                                .padding()
-                                .background(Color(.systemGray6))
-                                .cornerRadius(10)
-                                .frame(width: 80)
-                            
-                            TextField("Zip", text: $zipCode)
-                                .keyboardType(.numberPad)
-                                .padding()
-                                .background(Color(.systemGray6))
-                                .cornerRadius(10)
-                                .frame(width: 80)
-                        }
-                    }
-                    
-                    // Dog Information
-                    VStack(alignment: .leading, spacing: 15) {
-                        Text("Dog Information")
-                            .font(.headline)
-                            .padding(.leading, 2)
-                        
-                        TextField("Dog's Name", text: $dogName)
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .cornerRadius(10)
-                        
-                        TextField("Breed", text: $dogBreed)
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .cornerRadius(10)
-                        
-                        HStack(spacing: 10) {
-                            TextField("Age", text: $dogAge)
-                                .keyboardType(.numberPad)
-                                .padding()
-                                .background(Color(.systemGray6))
-                                .cornerRadius(10)
-                            
-                            Picker("Size", selection: $dogSize) {
-                                ForEach(dogSizeOptions, id: \.self) { size in
-                                    Text(size).tag(size)
-                                }
+                    // Profile Picture
+                    Button(action: {
+                        showImagePicker = true
+                    }) {
+                        VStack {
+                            if let image = profileImage {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 120, height: 120)
+                                    .clipShape(Circle())
+                            } else {
+                                Image(systemName: "person.circle.fill")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 120, height: 120)
+                                    .foregroundColor(.gray)
                             }
-                            .pickerStyle(MenuPickerStyle())
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .cornerRadius(10)
+                            
+                            Text("Add Profile Photo")
+                                .font(.footnote)
+                                .foregroundColor(.blue)
+                                .padding(.top, 5)
                         }
-                        
-                        TextField("Temperament (e.g., friendly, shy, energetic)", text: $dogTemperament)
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .cornerRadius(10)
-                        
+                    }
+                    
+                    // Owner Profile Form
+                    VStack(spacing: 15) {
+                        // Bio
                         VStack(alignment: .leading, spacing: 5) {
-                            Text("Special Care Instructions")
-                                .font(.subheadline)
+                            Text("About You")
+                                .font(.headline)
                                 .padding(.leading, 2)
                             
-                            TextEditor(text: $specialInstructions)
-                                .frame(height: 100)
+                            TextEditor(text: $bio)
+                                .frame(height: 120)
                                 .padding(10)
                                 .background(Color(.systemGray6))
                                 .cornerRadius(10)
@@ -190,28 +101,129 @@ struct UserProfile: View {
                                         .stroke(Color(.systemGray4), lineWidth: 1)
                                 )
                         }
-                    }
-                    
-                    // Submit button
-                    Button(action: submitUserProfile) {
-                        if isUploading {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        } else {
-                            Text("Complete Profile")
-                                .fontWeight(.semibold)
+                        
+                        // Contact Information
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("Contact Information")
+                                .font(.headline)
+                                .padding(.leading, 2)
+                            
+                            TextField("Phone Number", text: $phoneNumber)
+                                .keyboardType(.phonePad)
+                                .padding()
+                                .background(Color(.systemGray6))
+                                .cornerRadius(10)
                         }
+                        
+                        // Address
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("Address")
+                                .font(.headline)
+                                .padding(.leading, 2)
+                            
+                            TextField("Street Address", text: $address)
+                                .padding()
+                                .background(Color(.systemGray6))
+                                .cornerRadius(10)
+                            
+                            HStack(spacing: 10) {
+                                TextField("City", text: $city)
+                                    .padding()
+                                    .background(Color(.systemGray6))
+                                    .cornerRadius(10)
+                                
+                                TextField("State", text: $state)
+                                    .padding()
+                                    .background(Color(.systemGray6))
+                                    .cornerRadius(10)
+                                    .frame(width: 80)
+                                
+                                TextField("Zip", text: $zipCode)
+                                    .keyboardType(.numberPad)
+                                    .padding()
+                                    .background(Color(.systemGray6))
+                                    .cornerRadius(10)
+                                    .frame(width: 80)
+                            }
+                        }
+                        
+                        // Dog Information
+                        VStack(alignment: .leading, spacing: 15) {
+                            Text("Dog Information")
+                                .font(.headline)
+                                .padding(.leading, 2)
+                            
+                            TextField("Dog's Name", text: $dogName)
+                                .padding()
+                                .background(Color(.systemGray6))
+                                .cornerRadius(10)
+                            
+                            TextField("Breed", text: $dogBreed)
+                                .padding()
+                                .background(Color(.systemGray6))
+                                .cornerRadius(10)
+                            
+                            HStack(spacing: 10) {
+                                TextField("Age", text: $dogAge)
+                                    .keyboardType(.numberPad)
+                                    .padding()
+                                    .background(Color(.systemGray6))
+                                    .cornerRadius(10)
+                                
+                                Picker("Size", selection: $dogSize) {
+                                    ForEach(dogSizeOptions, id: \.self) { size in
+                                        Text(size).tag(size)
+                                    }
+                                }
+                                .pickerStyle(MenuPickerStyle())
+                                .padding()
+                                .background(Color(.systemGray6))
+                                .cornerRadius(10)
+                            }
+                            
+                            TextField("Temperament (e.g., friendly, shy, energetic)", text: $dogTemperament)
+                                .padding()
+                                .background(Color(.systemGray6))
+                                .cornerRadius(10)
+                            
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text("Special Care Instructions")
+                                    .font(.subheadline)
+                                    .padding(.leading, 2)
+                                
+                                TextEditor(text: $specialInstructions)
+                                    .frame(height: 100)
+                                    .padding(10)
+                                    .background(Color(.systemGray6))
+                                    .cornerRadius(10)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(Color(.systemGray4), lineWidth: 1)
+                                    )
+                            }
+                        }
+                        
+                        // Submit button
+                        Button(action: submitUserProfile) {
+                            if isUploading {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            } else {
+                                Text("Complete Profile")
+                                    .fontWeight(.semibold)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                        .disabled(isUploading)
+                        .opacity(isUploading ? 0.6 : 1)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-                    .disabled(isUploading)
-                    .opacity(isUploading ? 0.6 : 1)
+                    .padding(.horizontal)
+                    .padding(.bottom, 50)
                 }
-                .padding(.horizontal)
-                .padding(.bottom, 50)
             }
         }
         .navigationBarTitle("Profile Setup", displayMode: .inline)
@@ -270,6 +282,7 @@ struct UserProfile: View {
             alertMessage = "Profile completed successfully!"
             showAlert = true
             // Navigate to main app view would happen here
+            self.completed = true
         }
     }
 }
@@ -277,7 +290,7 @@ struct UserProfile: View {
 struct UserProfileSetupView_Previews: PreviewProvider {
     static var previews: some View {
         NavigationView {
-            UserProfile(userId: "97xAJ9gTauXZlyUDOzi2ASWse5R2")
+            UserProfile(userId: "PreviewID")
         }
     }
 }

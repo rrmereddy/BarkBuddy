@@ -101,9 +101,11 @@ struct FutureWalksView: View {
                       let duration = walk["duration"] as? Int,
                       let price = walk["price"] as? Double,
                       let statusString = walk["status"] as? String,
-                      let status = WalkStatus(rawValue: statusString.capitalized) else {
+                      let status = WalkStatus(rawValue: statusString)
+                else{
                     continue
                 }
+                
 
                 let walkItem = DogWalk(
                     dogName: dogName,
@@ -113,13 +115,13 @@ struct FutureWalksView: View {
                     price: price,
                     status: status
                 )
-                print(walkItem)
+                print("Walk Items: ", walkItem)
                 loadedWalks.append(walkItem)
                 
             }
 
             self.walks = loadedWalks
-            print(self.walks)
+            print("Walks: ", self.walks)
         }
     }
 
@@ -789,10 +791,10 @@ struct DogWalk: Identifiable, Hashable {
 }
 
 enum WalkStatus: String, CaseIterable { // Added CaseIterable if needed
-    case upcoming = "upcoming"
+    case upcoming
     case inProgress = "In Progress"
-    case completed = "completed"
-    case canceled = "canceled"
+    case completed
+    case canceled
 }
 
 // MARK: - Preview

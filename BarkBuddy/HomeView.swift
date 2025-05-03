@@ -1,5 +1,7 @@
 import SwiftUI
 import FirebaseAuth // <--- Import FirebaseAuth
+import FirebaseFirestore
+import FirebaseStorage
 
 struct HomeView: View {
     @State private var searchText = ""
@@ -44,8 +46,9 @@ struct HomeView: View {
                          showProfileModal = true
                      }) {
                          Image(systemName: "person.circle")
-                             .foregroundColor(Color.teal)
-                             .font(.system(size: 22))
+                             .resizable()
+                             .frame(width: 30, height: 30)
+                             .foregroundColor(.blue)
                      }
                  }
              }
@@ -192,10 +195,7 @@ struct HomeView: View {
             .background(Color(UIColor.systemGray6))
             // --- Modals ---
              .sheet(isPresented: $showProfileModal) {
-                  // Replace Text with your actual ProfileEditView or similar
-                  Text("Profile Editor Modal")
-                     .font(.title).padding()
-                     .onAppear { print("Showing profile edit modal") }
+                 ProfileEditView()
               }
              .sheet(isPresented: $showAllWalkersModal) {
                   // Replace Text with your actual view for all walkers

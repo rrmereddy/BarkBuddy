@@ -111,7 +111,7 @@ struct WalkerProfile: View {
             Text(alertMessage)
         }
         .sheet(isPresented: $showImagePicker) {
-            Text("Image Picker Placeholder")
+            ImagePicker(selectedImage: $profileImage)
         }
         .animation(.default, value: currentStep)
     }

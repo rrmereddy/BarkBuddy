@@ -1,5 +1,7 @@
 import SwiftUI
 import FirebaseAuth
+import FirebaseFirestore
+import FirebaseStorage
 
 struct UserIDWrapper: Identifiable {
   let id: String
@@ -16,11 +18,17 @@ struct HomeView: View {
     @State private var showAcceptedChatsOwner = false
     @State private var showUserDuringWalkView = false
     @State private var showWalkerDuringWalkView = false
+    @State private var showAcceptedChatsWalker = false
+    @State private var pendingWalkRequests: Int = 0
+    @State private var isWalker: Bool = false
     @State private var selectedProfileUser: UserIDWrapper? = nil
     @State private var selectedFutureWalkUser: UserIDWrapper? = nil
+    @State private var showProfileDogWalkerModalPending = false
+    
+    // Chat service for checking unread messages
+    @StateObject private var chatService = ChatService()
 
-
-    // Use a non-optional currentUserID with a default empty string
+    // State variable to store the current user's ID
     @State private var currentUserID: String = ""
     
     // Variable to track if user ID has been fetched
@@ -43,22 +51,76 @@ struct HomeView: View {
                  Spacer()
 
                  HStack(spacing: 16) {
-                     Image(systemName: "bell")
-                         .foregroundColor(Color.gray)
-                         .font(.system(size: 20))
+                     Button(action: {
+                         if isWalker {
+                             showAcceptedChatsWalker = true
+                         } else {
+                             showAcceptedChatsOwner = true
+                         }
+                     }) {
+                         ZStack(alignment: .topTrailing) {
+                             Image(systemName: "bell")
+                                 .foregroundColor(Color.gray)
+                                 .font(.system(size: 20))
+                             
+                             if chatService.unreadMessagesCount > 0 || pendingWalkRequests > 0 {
+                                 let totalCount = chatService.unreadMessagesCount + pendingWalkRequests
+                                 Text("\(totalCount)")
+                                     .font(.system(size: 10, weight: .bold))
+                                     .foregroundColor(.white)
+                                     .frame(minWidth: 16, minHeight: 16)
+                                     .background(Color.red)
+                                     .clipShape(Circle())
+                                     .offset(x: 8, y: -6)
+                             }
+                         }
+                     }
 
                      Button(action: {
                          showProfileModal = true
                      }) {
                          Image(systemName: "person.circle")
-                             .foregroundColor(Color.teal)
-                             .font(.system(size: 22))
+                             .resizable()
+                             .frame(width: 30, height: 30)
+                             .foregroundColor(.blue)
                      }
                  }
              }
              .padding()
              .background(Color.white)
              .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+             
+            // Pending walk requests banner (only shown for walkers)
+            if isWalker && pendingWalkRequests > 0 {
+                HStack {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .foregroundColor(.white)
+                    
+                    Text("You have \(pendingWalkRequests) pending walk \(pendingWalkRequests == 1 ? "request" : "requests")!")
+                        .foregroundColor(.white)
+                        .font(.system(size: 14, weight: .semibold))
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        showAcceptedChatsWalker = true
+                    }) {
+                        Text("View")
+                            .foregroundColor(.white)
+                            .fontWeight(.bold)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 4)
+                            .background(Color.white.opacity(0.3))
+                            .cornerRadius(12)
+                    }
+                }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 16)
+                .background(Color.red)
+                .onTapGesture {
+                    showAcceptedChatsWalker = true
+                }
+            }
 
 
             // Main Content
@@ -193,10 +255,7 @@ struct HomeView: View {
             .background(Color(UIColor.systemGray6))
             // --- Modals ---
              .sheet(isPresented: $showProfileModal) {
-                  // Replace Text with your actual ProfileEditView or similar
-                  Text("Profile Editor Modal")
-                     .font(.title).padding()
-                     .onAppear { print("Showing profile edit modal") }
+                 ProfileEditView()
               }
              .sheet(isPresented: $showAllWalkersModal) {
                   // Replace Text with your actual view for all walkers
@@ -214,7 +273,7 @@ struct HomeView: View {
                   PastWalksView() // Assuming this view exists
               }
              .sheet(isPresented: $showAcceptedChatsOwner) {
-                  BligView() // Assuming this view exists
+                  DogOwnerChatView() // Direct reference to the proper chat view for owners
               }
              .sheet(isPresented: $showUserDuringWalkView) {
                   PetOwnerWalkView() // Assuming this view exists
@@ -222,6 +281,9 @@ struct HomeView: View {
              .sheet(isPresented: $showWalkerDuringWalkView) {
                   WalkerDuringWalkView() // Assuming this view exists
               }
+             .sheet(isPresented: $showAcceptedChatsWalker) {
+                AcceptedChatView() // Correct view for walkers
+             }
 
             // Bottom Navigation (remains the same)
              HStack(spacing: 0) {
@@ -229,7 +291,7 @@ struct HomeView: View {
                  new_TabButton(image: "house", title: "Home", isSelected: selectedTab == "home") { selectedTab = "home" }
                  new_TabButton(image: "magnifyingglass", title: "Search", isSelected: selectedTab == "search") { selectedTab = "search" /* TODO: Add search action or view */ }
                  new_TabButton(image: "calendar", title: "Bookings", isSelected: selectedTab == "bookings") { selectedTab = "bookings"; showFutureWalksModal = true }
-                 new_TabButton(image: "message", title: "Messages", isSelected: selectedTab == "messages") { selectedTab = "messages"; showAcceptedChatsOwner = true }
+                 new_TabButton(image: "message", title: "Messages", isSelected: selectedTab == "messages", badgeCount: chatService.unreadMessagesCount) { selectedTab = "messages"; showAcceptedChatsOwner = true }
                  new_TabButton(image: "person", title: "Settings", isSelected: selectedTab == "settings") { selectedTab = "settings" /* TODO: Add settings action or view */ }
              }
              .padding(.top, 8)
@@ -241,6 +303,10 @@ struct HomeView: View {
         .onAppear {
             fetchUserID()
         }
+        .onDisappear {
+            // Detach listeners when view disappears
+            chatService.detachListeners()
+        }
     }
 
     // --- Function to fetch the User ID ---
@@ -249,13 +315,62 @@ struct HomeView: View {
         if let user = Auth.auth().currentUser {
             self.currentUserID = user.uid
             self.isUserIDLoaded = true
-            print("✅ Current User ID: \(self.currentUserID)")
+            print("✅ HomeView: Current User ID: \(self.currentUserID)")
+            print("✅ HomeView: User Email: \(user.email ?? "No email")")
+            print("✅ HomeView: User Display Name: \(user.displayName ?? "No display name")")
+            print("✅ HomeView: User Phone: \(user.phoneNumber ?? "No phone")")
+            
+            // Start checking for unread messages
+            chatService.checkUnreadMessages(userId: user.uid)
+            
+            // Check if this user is a walker by querying the walkers collection
+            let db = Firestore.firestore()
+            db.collection("walkers").document(user.uid).getDocument { snapshot, error in
+                if let error = error {
+                    print("❌ Error checking if user is a walker: \(error.localizedDescription)")
+                    return
+                }
+                
+                // If the document exists, this is a walker
+                if let snapshot = snapshot, snapshot.exists {
+                    self.isWalker = true
+                    print("✅ HomeView: User is a walker")
+                    
+                    // For walkers, check if they have any pending requests
+                    self.checkPendingWalkRequests(walkerId: user.uid)
+                } else {
+                    self.isWalker = false
+                    print("✅ HomeView: User is not a walker")
+                }
+            }
         } else {
             self.currentUserID = ""
             self.isUserIDLoaded = false
-            print("⚠️ No user logged in.")
+            print("⚠️ HomeView: No user logged in. Auth.auth().currentUser is nil")
             // Handle the case where the user is not logged in (e.g., show login screen)
         }
+    }
+    
+    // Function to check for pending walk requests
+    private func checkPendingWalkRequests(walkerId: String) {
+        let db = Firestore.firestore()
+        
+        // Query chat rooms where this user is the walker, owner has accepted, but walker hasn't
+        db.collection("chatRooms")
+            .whereField("walkerId", isEqualTo: walkerId)
+            .whereField("ownerAccepted", isEqualTo: true)
+            .whereField("walkerAccepted", isEqualTo: false)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    print("❌ Error checking pending walk requests: \(error.localizedDescription)")
+                    return
+                }
+                
+                if let documents = snapshot?.documents {
+                    self.pendingWalkRequests = documents.count
+                    print("✅ HomeView: Found \(self.pendingWalkRequests) pending walk requests")
+                }
+            }
     }
 }
 
@@ -338,14 +453,36 @@ struct new_TabButton: View {
     let image: String
     let title: String
     let isSelected: Bool
+    let badgeCount: Int
     let action: () -> Void
-
+    
+    init(image: String, title: String, isSelected: Bool, badgeCount: Int = 0, action: @escaping () -> Void) {
+        self.image = image
+        self.title = title
+        self.isSelected = isSelected
+        self.badgeCount = badgeCount
+        self.action = action
+    }
+    
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
-                Image(systemName: image)
-                    .font(.system(size: 20))
-                    .foregroundColor(isSelected ? Color.teal : Color.gray)
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: image)
+                        .font(.system(size: 20))
+                        .foregroundColor(isSelected ? Color.teal : Color.gray)
+                    
+                    if badgeCount > 0 {
+                        Text("\(badgeCount)")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(minWidth: 16, minHeight: 16)
+                            .background(Color.red)
+                            .clipShape(Circle())
+                            .offset(x: 8, y: -6)
+                    }
+                }
+                
                 Text(title)
                     .font(.system(size: 12))
                     .foregroundColor(isSelected ? Color.teal : Color.gray)

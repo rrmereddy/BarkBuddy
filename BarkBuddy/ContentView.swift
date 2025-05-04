@@ -8,11 +8,25 @@
 import SwiftUI
 import FirebaseCore
 import FirebaseFirestore
+import FirebaseStorage
 
 class AppDelegate: NSObject, UIApplicationDelegate {
   func application(_ application: UIApplication,
                    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
     FirebaseApp.configure()
+    
+    // Verify Firebase Storage is properly configured
+    let storage = Storage.storage()
+    print("✅ Firebase Storage initialized with URL: \(storage.reference().description)")
+    
+    // Check if we can access the storage bucket
+    do {
+        let storageRef = storage.reference()
+        print("✅ Firebase Storage bucket accessed successfully")
+    } catch {
+        print("⚠️ Error accessing Firebase Storage: \(error)")
+    }
+    
     return true
   }
 }

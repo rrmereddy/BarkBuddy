@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FirebaseFirestore
+import FirebaseStorage
 
 struct UserProfile: View {
     let userId: String
@@ -236,8 +237,7 @@ struct UserProfile: View {
         }
         .sheet(isPresented: $showImagePicker) {
             // Image picker would go here
-            Text("Image Picker would appear here")
-                .padding()
+            ImagePicker(selectedImage: $profileImage)
         }
     }
     
@@ -257,8 +257,8 @@ struct UserProfile: View {
             "createdAt": FieldValue.serverTimestamp()
         ]
         
-        // Update user profile
-        db.collection("users").document(userId).updateData([
+        // Store profile data to be used with or without image
+        let profileData: [String: Any] = [
             "bio": bio,
             "phoneNumber": phoneNumber,
             "address": address,
@@ -268,21 +268,65 @@ struct UserProfile: View {
             "profileComplete": true,
             "dogInfo": dogData,
             "updatedAt": FieldValue.serverTimestamp()
-        ]) { error in
-            isUploading = false
-            
-            if let error = error {
-                alertMessage = "Error updating profile: \(error.localizedDescription)"
-                showAlert = true
+        ]
+        
+        // If we have an image, upload it first, then update the profile
+        if let image = profileImage, let imageData = image.jpegData(compressionQuality: 0.7) {
+            uploadImageAndSaveProfile(imageData: imageData, profileData: profileData)
+        } else {
+            // Otherwise just update the profile without an image
+            updateProfileData(profileData: profileData)
+        }
+    }
+    
+    private func uploadImageAndSaveProfile(imageData: Data, profileData: [String: Any]) {
+        let storage = Storage.storage()
+        let storageRef = storage.reference().child("user_profiles/\(userId).jpg")
+        
+        // Upload the image
+        storageRef.putData(imageData, metadata: nil) { metadata, error in
+            guard metadata != nil else {
+                // Handle the error
+                DispatchQueue.main.async {
+                    self.isUploading = false
+                    self.alertMessage = "Error uploading image: \(error?.localizedDescription ?? "Unknown error")"
+                    self.showAlert = true
+                }
                 return
             }
             
-            // Handle profile image upload would go here
-            
-            alertMessage = "Profile completed successfully!"
-            showAlert = true
-            // Navigate to main app view would happen here
-            self.completed = true
+            // Get the download URL
+            storageRef.downloadURL { url, error in
+                var updatedProfileData = profileData
+                
+                if let downloadURL = url {
+                    // Add the profile image URL to the profile data
+                    updatedProfileData["profileImageURL"] = downloadURL.absoluteString
+                }
+                
+                // Update the profile with or without the image URL
+                self.updateProfileData(profileData: updatedProfileData)
+            }
+        }
+    }
+    
+    private func updateProfileData(profileData: [String: Any]) {
+        let db = Firestore.firestore()
+        
+        db.collection("users").document(userId).updateData(profileData) { error in
+            DispatchQueue.main.async {
+                self.isUploading = false
+                
+                if let error = error {
+                    self.alertMessage = "Error updating profile: \(error.localizedDescription)"
+                    self.showAlert = true
+                    return
+                }
+                
+                self.alertMessage = "Profile completed successfully!"
+                self.showAlert = true
+                self.completed = true
+            }
         }
     }
 }

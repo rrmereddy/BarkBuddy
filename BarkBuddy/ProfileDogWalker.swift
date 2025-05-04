@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseFirestore // Make sure Firestore is imported
+import FirebaseAuth
 
 // Restore the original DogWalker struct definition
 struct DogWalker: Identifiable, Equatable {
@@ -40,6 +41,12 @@ public struct DogWalkerProfileView: View {
     @State private var showMessageView = false
     @State private var isLoading = true
     @State private var errorMessage: String? = nil
+    @State private var ownerName: String = ""
+    @State private var dogName: String = ""
+    @State private var showChatCreatedAlert = false
+    
+    // ChatService for creating chat rooms
+    @StateObject private var chatService = ChatService()
 
     // Access Firestore instance
     private var db = Firestore.firestore()
@@ -64,7 +71,7 @@ public struct DogWalkerProfileView: View {
                 }
             }
             .padding()
-
+            
             // Skipped walkers list
             if !skippedWalkers.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
@@ -100,48 +107,48 @@ public struct DogWalkerProfileView: View {
                     Text("No more dog walkers found.").foregroundColor(.gray).padding()
                 } else {
                     // Walker cards stack
-                    ZStack {
+                ZStack {
                         ForEach(Array(dogWalkers.enumerated()), id: \.element.id) { index, walker in
                             if abs(index - currentIndex) <= 2 {
-                                let isCurrentCard = index == currentIndex
-                                DogWalkerCard(
+                            let isCurrentCard = index == currentIndex
+                            DogWalkerCard(
                                     dogWalker: walker,
-                                    onRate: {
+                                onRate: {
                                         selectedDogWalker = walker
-                                        showRatingModal = true
-                                    }
-                                )
+                                    showRatingModal = true
+                                }
+                            )
                                 .zIndex(Double(-index))
                                 .offset(x: isCurrentCard ? offset.width : 0, y: isCurrentCard ? offset.height : CGFloat(min(index - currentIndex, 2)) * 10)
                                 .scaleEffect(isCurrentCard ? 1.0 : max(1.0 - (CGFloat(abs(index - currentIndex)) * 0.05), 0.9))
                                 .opacity(isCurrentCard ? 1.0 : (index > currentIndex ? (1.0 - (CGFloat(abs(index - currentIndex)-1) * 0.3)) : 0))
-                                .rotationEffect(.degrees(isCurrentCard ? Double(offset.width / 20) : 0))
-                                .gesture(
-                                    isCurrentCard ?
-                                    DragGesture()
-                                        .onChanged { gesture in
-                                            offset = gesture.translation
-                                        }
-                                        .onEnded { gesture in
-                                            withAnimation(.spring()) {
+                            .rotationEffect(.degrees(isCurrentCard ? Double(offset.width / 20) : 0))
+                            .gesture(
+                                isCurrentCard ?
+                                DragGesture()
+                                    .onChanged { gesture in
+                                        offset = gesture.translation
+                                    }
+                                    .onEnded { gesture in
+                                        withAnimation(.spring()) {
                                                 // Pass the specific walker to handleSwipe
                                                 handleSwipe(width: gesture.translation.width, walker: walker)
-                                            }
-                                        } : nil
-                                )
-                            }
+                                        }
+                                    } : nil
+                            )
                         }
+                    }
                     } // End Card ZStack
-
-                    // Action buttons
-                    VStack {
-                         Spacer()
-                         HStack(spacing: 50) {
+                
+                // Action buttons
+                VStack {
+                    Spacer()
+                    HStack(spacing: 50) {
                              Button(action: { // SKIP BUTTON
                                  if currentIndex < dogWalkers.count {
                                       let walkerToSkip = dogWalkers[currentIndex]
-                                      withAnimation(.spring()) {
-                                          offset = CGSize(width: -500, height: 0)
+                            withAnimation(.spring()) {
+                                offset = CGSize(width: -500, height: 0)
                                           handleSwipe(width: -500, walker: walkerToSkip) // Trigger swipe logic
                                       }
                                  }
@@ -154,8 +161,8 @@ public struct DogWalkerProfileView: View {
                                  if currentIndex < dogWalkers.count {
                                       let walkerToConnect = dogWalkers[currentIndex]
                                       selectedDogWalker = walkerToConnect // Keep for message view
-                                      withAnimation(.spring()) {
-                                          offset = CGSize(width: 500, height: 0)
+                            withAnimation(.spring()) {
+                                offset = CGSize(width: 500, height: 0)
                                           handleSwipe(width: 500, walker: walkerToConnect) // Trigger swipe logic
                                       }
                                       // Show message view slightly delayed (optional)
@@ -195,6 +202,14 @@ public struct DogWalkerProfileView: View {
         .navigationBarHidden(true)
         .onAppear {
             fetchDogWalkers()
+            fetchOwnerData()
+        }
+        .alert(isPresented: $showChatCreatedAlert) {
+            Alert(
+                title: Text("Walk Request Sent!"),
+                message: Text("You've requested a walk. The walker will need to confirm your request. Check your messages for updates."),
+                dismissButton: .default(Text("OK"))
+            )
         }
     }
 
@@ -241,6 +256,9 @@ public struct DogWalkerProfileView: View {
                         print("❌ Error updating accepted_walkers: \(error.localizedDescription)")
                     } else {
                         print("✅ Successfully added \(walker.name) (ID: \(walkerID)) to accepted_walkers for user \(self.userID)")
+                        
+                        // After successfully updating accepted_walkers, create a chat room
+                        self.createChatRoomForAcceptedWalker(ownerId: self.userID, walkerId: walkerID, walkerName: walker.name)
                     }
                 }
             }
@@ -367,6 +385,83 @@ public struct DogWalkerProfileView: View {
             }
         }
     }
+
+    // Fetch the owner's data (name and dog)
+    private func fetchOwnerData() {
+        guard !userID.isEmpty else { return }
+        
+        db.collection("users").document(userID).getDocument { snapshot, error in
+            guard let data = snapshot?.data() else {
+                print("Error fetching owner data: \(error?.localizedDescription ?? "Unknown error")")
+                return
+            }
+            
+            // Get owner name
+            if let firstName = data["firstName"] as? String, let lastName = data["lastName"] as? String {
+                self.ownerName = "\(firstName) \(lastName)"
+            }
+            
+            // Get dog name from first dog in array
+            if let dogs = data["dogs"] as? [[String: Any]], let firstDog = dogs.first {
+                self.dogName = firstDog["name"] as? String ?? "Your Dog"
+            }
+            
+            print("Fetched owner data: \(self.ownerName), Dog: \(self.dogName)")
+        }
+    }
+
+    private func createChatRoomForAcceptedWalker(ownerId: String, walkerId: String, walkerName: String) {
+        // Create a unique walk ID
+        let walkId = "walk-\(ownerId)-\(walkerId)-\(UUID().uuidString)"
+        
+        // Create a walk date (tomorrow by default)
+        let walkDateTime = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+        
+        // Default dog name if not fetched
+        let finalDogName = dogName.isEmpty ? "Your Dog" : dogName
+        
+        // Default owner name if not fetched
+        let finalOwnerName = ownerName.isEmpty ? "Dog Owner" : ownerName
+        
+        // Now create the chat room
+        chatService.createChatRoom(
+            walkId: walkId,
+            ownerId: ownerId,
+            ownerName: finalOwnerName,
+            walkerId: walkerId,
+            walkerName: walkerName,
+            dogName: finalDogName,
+            walkDateTime: walkDateTime,
+            walkStatus: "Requested",
+            ownerProfileImageURL: nil,
+            walkerProfileImageURL: nil
+        ) { result in
+            
+            switch result {
+            case .success(let chatRoomId):
+                print("✅ Chat room created: \(chatRoomId)")
+                
+                // Now mark the walk as accepted by the owner
+                self.chatService.ownerAcceptWalk(chatRoomId: chatRoomId) { result in
+                    switch result {
+                    case .success:
+                        print("✅ Owner marked walk as accepted")
+                        
+                        // Show alert to user that chat is created
+                        DispatchQueue.main.async {
+                            self.showChatCreatedAlert = true
+                        }
+                        
+                    case .failure(let error):
+                        print("❌ Error marking walk as accepted: \(error.localizedDescription)")
+                    }
+                }
+                
+            case .failure(let error):
+                print("❌ Error creating chat room: \(error.localizedDescription)")
+            }
+        }
+    }
 }
 
 
@@ -377,7 +472,7 @@ public struct DogWalkerProfileView: View {
 struct DogWalkerCard: View {
     let dogWalker: DogWalker // Expects the original struct
     let onRate: () -> Void
-
+    
     var body: some View {
         ZStack(alignment: .bottom) {
             Rectangle().fill(Color.gray.opacity(0.3))
@@ -430,13 +525,13 @@ struct InfoTag: View {
     var textColor: Color = .white
     var body: some View {
         Text(text)
-            .font(.caption)
+                        .font(.caption)
             .lineLimit(1)
             .foregroundColor(textColor)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
             .background(color)
-            .cornerRadius(10)
+                        .cornerRadius(10)
     }
 }
 
@@ -445,7 +540,7 @@ struct RatingModalView: View {
     @Binding var rating: Int
     @Binding var isPresented: Bool
     @State private var reviewText: String = ""
-
+    
     var body: some View {
         VStack(spacing: 15) {
             HStack {
@@ -458,14 +553,14 @@ struct RatingModalView: View {
 
             // Use the profileImage name with Image()
             Image(dogWalker.profileImage)
-                 .resizable()
+                .resizable()
                  .aspectRatio(contentMode: .fit)
                  .frame(width: 80, height: 80)
-                 .clipShape(Circle())
+                .clipShape(Circle())
                  .padding(5)
                  .background(Circle().fill(Color.gray.opacity(0.2)))
                  .foregroundColor(.gray) // Color for system image
-
+            
             HStack { /* Star rating logic (same) */
                 ForEach(1...5, id: \.self) { star in
                     Image(systemName: star <= rating ? "star.fill" : "star")
@@ -477,13 +572,13 @@ struct RatingModalView: View {
             TextEditor(text: $reviewText) /* Review text field (same) */
                  .frame(height: 100)
                  .padding(8)
-                 .background(Color.gray.opacity(0.1))
-                 .cornerRadius(10)
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(10)
                  // Placeholder logic can be added here if needed
-
+            
             Button(action: { /* Submit logic (same) */
                  print("Rating: \(rating), Review: \(reviewText) for \(dogWalker.firebaseDocId ?? "Unknown FBID")")
-                 isPresented = false
+                isPresented = false
             }) {
                  Text("Submit Rating").font(.headline).foregroundColor(.white)
                      .frame(maxWidth: .infinity).padding()
@@ -503,15 +598,15 @@ struct MessageView: View {
     @Binding var isPresented: Bool
     @State private var messageText: String = ""
     @Environment(\.dismiss) var dismiss
-
+    
     var body: some View {
          NavigationView {
-              VStack(spacing: 0) {
+        VStack(spacing: 0) {
                   ScrollView { /* Message Area (same placeholder logic) */
-                       VStack(alignment: .center, spacing: 20) {
-                           VStack(spacing: 10) {
+                VStack(alignment: .center, spacing: 20) {
+                    VStack(spacing: 10) {
                                // Use profileImage name with Image()
-                               Image(dogWalker.profileImage)
+                        Image(dogWalker.profileImage)
                                    .resizable().aspectRatio(contentMode: .fit)
                                    .frame(width: 80, height: 80).clipShape(Circle())
                                    .padding(5).background(Circle().fill(Color.gray.opacity(0.2)))
@@ -544,7 +639,7 @@ struct MessageView: View {
 
     func sendMessage() {
         print("Sending message to \(dogWalker.firebaseDocId ?? "Unknown FBID"): \(messageText)")
-        messageText = ""
+                        messageText = ""
         // Hide keyboard
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
@@ -557,20 +652,20 @@ struct MessageView: View {
      let previewWalker = DogWalker(
          name: "Sarah Johnson (Preview)",
          profileImage: "person.crop.circle.fill.badge.checkmark", // System image name
-         rating: 4.8,
-         reviews: 124,
-         isBackgroundChecked: true,
+            rating: 4.8,
+            reviews: 124,
+            isBackgroundChecked: true,
          bio: "Professional dog trainer preview bio.",
-         rate: "$18/walk",
-         distance: "0.8 miles away",
+            rate: "$18/walk",
+            distance: "0.8 miles away",
          specialties: ["High-energy dogs", "Puppy training"],
          availability: "Weekdays 9am-5pm",
          firebaseDocId: "preview123"
      )
      return DogWalkerCard(
          dogWalker: previewWalker,
-         onRate: {}
-     )
+        onRate: {}
+    )
      .padding()
 }
 
@@ -578,12 +673,12 @@ struct MessageView: View {
     let previewWalker = DogWalker(
         name: "Marcus Rivera (Preview)",
         profileImage: "person.crop.circle.fill", // System image name
-        rating: 4.9,
-        reviews: 87,
-        isBackgroundChecked: true,
+            rating: 4.9,
+            reviews: 87,
+            isBackgroundChecked: true,
         bio: "Former vet tech preview bio.",
-        rate: "$20/walk",
-        distance: "1.2 miles away",
+            rate: "$20/walk",
+            distance: "1.2 miles away",
         specialties: ["Anxious dogs", "Medication admin"],
         availability: "Evenings and weekends",
         firebaseDocId: "preview456"
@@ -599,18 +694,18 @@ struct MessageView: View {
      let previewWalker = DogWalker(
         name: "Emily Chen (Preview)",
         profileImage: "figure.walk.circle.fill", // System image name
-        rating: 4.7,
-        reviews: 56,
-        isBackgroundChecked: true,
+            rating: 4.7,
+            reviews: 56,
+            isBackgroundChecked: true,
         bio: "Part-time dog walker preview bio.",
-        rate: "$15/walk",
-        distance: "0.5 miles away",
+            rate: "$15/walk",
+            distance: "0.5 miles away",
         specialties: ["Long walks", "Running buddy"],
         availability: "Mornings and weekends",
         firebaseDocId: "preview789"
      )
      return MessageView(
          dogWalker: previewWalker,
-         isPresented: .constant(true)
-     )
+        isPresented: .constant(true)
+    )
 }

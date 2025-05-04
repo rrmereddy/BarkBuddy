@@ -287,7 +287,7 @@ struct HomeView: View {
                DogWalkerProfileView(userID: wrapper.id)
              }
              .sheet(item: $selectedFutureWalkUser) { wrapper in
-                 FutureWalksView(userID: wrapper.id)
+                 FutureWalksView(userID: wrapper.id, isWalker: self.isWalker)
               }
              .sheet(isPresented: $showPastWalksModal) {
                   PastWalksView() // Assuming this view exists

@@ -10,6 +10,7 @@ import FirebaseFirestore
 
 struct FutureWalksView: View {
     let userID: String
+    let isWalker: Bool
     // MARK: - Properties
     @State private var calendarViewMode: CalendarViewMode = .month
     @State private var selectedDate = Date()
@@ -84,11 +85,13 @@ struct FutureWalksView: View {
     
     private func fetchUpcomingWalks() {
         let db = Firestore.firestore()
-        db.collection("users").document(userID).getDocument { snapshot, error in
+        let collection = isWalker ? "walkers" : "users"
+        db.collection(collection).document(userID).getDocument { snapshot, error in
             guard let data = snapshot?.data(), error == nil else {
                 print("❌ Error fetching upcoming_walks: \(error?.localizedDescription ?? "Unknown error")")
                 return
             }
+
 
             guard let rawWalks = data["upcoming_walks"] as? [[String: Any]] else {
                 print("⚠️ No upcoming_walks field found.")
@@ -810,6 +813,6 @@ enum WalkStatus: String, CaseIterable { // Added CaseIterable if needed
 // MARK: - Preview
 struct FutureWalksView_Previews: PreviewProvider {
     static var previews: some View {
-        FutureWalksView(userID: "gwcZGcoKNwa1iS7424utiwzY1G62")
+        FutureWalksView(userID: "gwcZGcoKNwa1iS7424utiwzY1G62", isWalker: false)
     }
 }

@@ -8,13 +8,388 @@
 import SwiftUI
 
 struct PastWalksView: View {
-    @State private var selectedWalk: Walk?
-    @State private var showingDetail = false
-    @Environment(\.colorScheme) var colorScheme
     @Environment(\.presentationMode) private var presentationMode
     
     // Sample data
-    let walks = [
+    let walks = Walk.sampleWalks
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 0) {
+                // Custom header to ensure consistency
+                HStack {
+                    Button(action: {
+                        presentationMode.wrappedValue.dismiss()
+                    }) {
+                        HStack(spacing: 3) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 16, weight: .semibold))
+                            Text("Back")
+                                .font(.system(size: 16, weight: .semibold))
+                        }
+                        .foregroundColor(.blue)
+                    }
+                    .padding(.leading)
+                    
+                    Spacer()
+                    
+                    Text("Past Walks")
+                        .font(.system(size: 17, weight: .semibold))
+                    
+                    Spacer()
+                    
+                    // Balance the header with empty space
+                    Text("      ")
+                        .padding(.trailing)
+                }
+                .padding(.vertical, 16)
+                .background(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.05), radius: 1)
+                
+                // The list of past walks
+                List {
+                    ForEach(walks) { walk in
+                        NavigationLink(destination: SimpleWalkDetailView(walk: walk)) {
+                            SimpleWalkRow(walk: walk)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                .listStyle(PlainListStyle())
+            }
+            .navigationBarHidden(true)
+        }
+        .navigationViewStyle(StackNavigationViewStyle())
+    }
+}
+
+// Ultra-simple walk row for maximum performance
+struct SimpleWalkRow: View {
+    let walk: Walk
+    
+    // Pre-calculate date string
+    private let dateString: String
+    
+    init(walk: Walk) {
+        self.walk = walk
+        
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        self.dateString = formatter.string(from: walk.date)
+    }
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Simple circular avatar
+            ZStack {
+                Circle()
+                    .fill(Color.blue.opacity(0.15))
+                    .frame(width: 50, height: 50)
+                
+                Text(String(walk.partnerName.prefix(1)))
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundColor(.blue)
+            }
+            
+            // Walk information
+            VStack(alignment: .leading, spacing: 4) {
+                Text("\(walk.dogName) with \(walk.partnerName)")
+                    .font(.system(size: 16, weight: .medium))
+                
+                Text(dateString)
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+                
+                HStack(spacing: 12) {
+                    Label("\(walk.duration) min", systemImage: "clock")
+                        .font(.system(size: 12))
+                    
+                    Label(String(format: "%.1f mi", walk.distance), systemImage: "figure.walk")
+                        .font(.system(size: 12))
+                }
+                .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+        }
+        .padding(.vertical, 6)
+    }
+}
+
+// Extremely simplified walk detail view focused on performance
+struct SimpleWalkDetailView: View {
+    let walk: Walk
+    @Environment(\.presentationMode) var presentationMode
+    @State private var isLoadingDetails = true
+    
+    // Pre-compute formatted strings
+    private let dateString: String
+    private let costString: String
+    
+    init(walk: Walk) {
+        self.walk = walk
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateStyle = .long
+        dateFormatter.timeStyle = .short
+        self.dateString = dateFormatter.string(from: walk.date)
+        
+        self.costString = String(format: "$%.2f", walk.cost)
+    }
+    
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                // Header section with walk info
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Walk with \(walk.partnerName)")
+                        .font(.system(size: 24, weight: .bold))
+                        .padding(.bottom, 2)
+                    
+                    Text(walk.dogName)
+                        .font(.system(size: 18, weight: .medium))
+                    
+                    Text(dateString)
+                        .font(.system(size: 16))
+                        .foregroundColor(.secondary)
+                        .padding(.bottom, 10)
+                    
+                    // Stats summary
+                    HStack(spacing: 12) {
+                        StatBadge(value: "\(walk.duration) min", icon: "clock", color: .blue)
+                        StatBadge(value: String(format: "%.1f mi", walk.distance), icon: "figure.walk", color: .green)
+                        StatBadge(value: "\(walk.pottyBreaks)", icon: "pawprint.fill", color: .orange)
+                        StatBadge(value: costString, icon: "dollarsign.circle", color: .green)
+                    }
+                    .padding(.top, 6)
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 16)
+                
+                Divider()
+                
+                // Walk details - only show after loading delay to ensure UI is responsive
+                if !isLoadingDetails {
+                    WalkDetailsContent(walk: walk)
+                } else {
+                    VStack {
+                        Spacer(minLength: 100)
+                        ProgressView("Loading walk details...")
+                        Spacer(minLength: 100)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            .padding(.top, 16)
+        }
+        .onAppear {
+            // Use a slight artificial delay to ensure the UI renders first
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                isLoadingDetails = false
+            }
+        }
+        .navigationBarTitle("Walk Details", displayMode: .inline)
+    }
+}
+
+// Separate the detail content for better performance
+struct WalkDetailsContent: View {
+    let walk: Walk
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Activities section
+            VStack(alignment: .leading) {
+                SectionHeader(title: "Activities")
+                
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(walk.activities, id: \.self) { activity in
+                            Text(activity)
+                                .font(.system(size: 14))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Color.blue.opacity(0.1))
+                                .foregroundColor(.blue)
+                                .cornerRadius(16)
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+            }
+            .padding(.vertical, 16)
+            
+            Divider()
+            
+            // Comments section
+            VStack(alignment: .leading) {
+                SectionHeader(title: "Comments")
+                
+                Text(walk.comments)
+                    .font(.system(size: 16))
+                    .padding(.horizontal)
+                    .padding(.bottom, 8)
+            }
+            .padding(.vertical, 16)
+            
+            Divider()
+            
+            // Rating section
+            VStack(alignment: .leading) {
+                SectionHeader(title: "Rating")
+                
+                HStack {
+                    SimpleStarRating(rating: walk.rating)
+                    
+                    Text("(\(String(format: "%.1f", walk.rating)))")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 8)
+            }
+            .padding(.vertical, 16)
+            
+            // Only show photos section if there are photos
+            if !walk.photos.isEmpty {
+                Divider()
+                
+                VStack(alignment: .leading) {
+                    SectionHeader(title: "Photos")
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            ForEach(0..<min(walk.photos.count, 5), id: \.self) { index in
+                                SimplePlaceholderImage()
+                                    .frame(width: 120, height: 120)
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                }
+                .padding(.vertical, 16)
+            }
+            
+            // Map placeholder
+            Divider()
+            
+            VStack(alignment: .leading) {
+                SectionHeader(title: "Walk Route")
+                
+                ZStack {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.1))
+                        .frame(height: 180)
+                        .cornerRadius(12)
+                    
+                    Label("Map View", systemImage: "map")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 16)
+            }
+            .padding(.vertical, 16)
+            
+            // Add some space at the bottom for scrolling
+            Spacer(minLength: 40)
+        }
+    }
+}
+
+// Ultra-simple section header
+struct SectionHeader: View {
+    let title: String
+    
+    var body: some View {
+        Text(title)
+            .font(.system(size: 18, weight: .bold))
+            .foregroundColor(.primary)
+            .padding(.horizontal)
+            .padding(.bottom, 8)
+    }
+}
+
+// Simple stat badge
+struct StatBadge: View {
+    let value: String
+    let icon: String
+    let color: Color
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 12))
+            
+            Text(value)
+                .font(.system(size: 14, weight: .medium))
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(color.opacity(0.1))
+        .foregroundColor(color)
+        .cornerRadius(12)
+    }
+}
+
+// Super simple star rating
+struct SimpleStarRating: View {
+    let rating: Double
+    
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(0..<5) { i in
+                Image(systemName: self.starType(for: i))
+                    .font(.system(size: 14))
+                    .foregroundColor(.yellow)
+            }
+        }
+    }
+    
+    private func starType(for index: Int) -> String {
+        if Double(index) + 0.5 < rating {
+            return "star.fill"
+        } else if Double(index) + 0.5 >= rating && Double(index) < rating {
+            return "star.leadinghalf.fill"
+        } else {
+            return "star"
+        }
+    }
+}
+
+// Simple placeholder for images
+struct SimplePlaceholderImage: View {
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.gray.opacity(0.1))
+            
+            Image(systemName: "photo")
+                .font(.system(size: 30))
+                .foregroundColor(.gray)
+        }
+    }
+}
+
+// Model with static sample data
+struct Walk: Identifiable {
+    let id: UUID
+    let date: Date
+    let dogName: String
+    let partnerName: String
+    let partnerImage: String
+    let duration: Int // minutes
+    let distance: Double // miles
+    let cost: Double
+    let pottyBreaks: Int
+    let activities: [String]
+    let comments: String
+    let rating: Double
+    let photos: [String]
+    
+    // Static sample data
+    static let sampleWalks = [
         Walk(
             id: UUID(),
             date: Date().addingTimeInterval(-86400),
@@ -61,399 +436,6 @@ struct PastWalksView: View {
             photos: []
         )
     ]
-    
-    
-    var body: some View {
-        NavigationView {
-            List {
-                ForEach(walks) { walk in
-                    WalkListItem(walk: walk)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            selectedWalk = walk
-                            showingDetail = true
-                        }
-                }
-            }
-            .navigationTitle("Past Walks")
-            .navigationBarItems(
-                leading: Button(action: {
-                    presentationMode.wrappedValue.dismiss()
-                }) {
-                    HStack(spacing: 3) {
-                        Image(systemName: "chevron.left")
-                        Text("Back")
-                    }
-                }
-            )
-            .sheet(isPresented: $showingDetail) {
-                if let walk = selectedWalk {
-                    WalkDetailView(walk: walk)
-                        .edgesIgnoringSafeArea(.bottom)
-                }
-                
-            }
-        }
-    }
-}
-
-struct WalkListItem: View {
-    let walk: Walk
-    @Environment(\.colorScheme) var colorScheme
-    
-    var body: some View {
-        HStack(spacing: 15) {
-            // Profile picture
-            ProfileImageView(imageName: walk.partnerImage, name: walk.partnerName)
-                .frame(width: 50, height: 50)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text("Walk with \(walk.partnerName)")
-                        .font(.headline)
-                    Spacer()
-                }
-                
-                HStack {
-                    Text("\(walk.dogName)")
-                        .font(.subheadline)
-                    Spacer()
-                }
-                
-                Text(formattedDate(walk.date))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            Spacer()
-            
-            Image(systemName: "chevron.right")
-                .foregroundColor(.gray)
-                .font(.system(size: 14))
-        }
-        .padding(.vertical, 8)
-    }
-    
-    func formattedDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
-    }
-}
-
-struct ProfileImageView: View {
-    let imageName: String
-    let name: String
-    
-    // Human emoji options for placeholder
-    let humanEmojis = ["👩", "👨", "👱‍♀️", "👱‍♂️", "👩‍🦰", "👨‍🦰", "👩‍🦱", "👨‍🦱", "👩‍🦳", "👨‍🦳"]
-    
-    var body: some View {
-        // In a real app, you would use an actual image loaded from an asset or URL
-        // For now, we'll use emoji placeholders if no image is available
-        if imageName.isEmpty {
-            // Get a consistent emoji based on the name
-            let nameHash = name.hashValue
-            let emojiIndex = abs(nameHash) % humanEmojis.count
-            
-            ZStack {
-                Circle()
-                    .fill(Color.blue.opacity(0.2))
-                
-                Text(humanEmojis[emojiIndex])
-                    .font(.system(size: 24))
-            }
-        } else {
-            // This would be a proper image in a real app
-            ZStack {
-                Circle()
-                    .fill(Color.blue.opacity(0.2))
-                
-                Text("👤")
-                    .font(.system(size: 24))
-            }
-        }
-    }
-}
-
-struct WalkDetailView: View {
-    let walk: Walk
-    @Environment(\.presentationMode) var presentationMode
-    
-    var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Header section
-                    HStack(spacing: 15) {
-                        ProfileImageView(imageName: walk.partnerImage, name: walk.partnerName)
-                            .frame(width: 70, height: 70)
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Walk with \(walk.partnerName)")
-                                .font(.title2)
-                                .fontWeight(.bold)
-                            
-                            Text("\(walk.dogName)")
-                                .font(.headline)
-                            
-                            Text(formattedDate(walk.date))
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .padding(.horizontal)
-                    
-                    Divider()
-                    
-                    // Walk stats
-                    HStack(spacing: 12) {
-                        StatCard(iconName: "clock", value: "\(walk.duration)", unit: "min", label: "Duration")
-                        StatCard(iconName: "figure.walk", value: String(format: "%.1f", walk.distance), unit: "mi", label: "Distance")
-                        StatCard(iconName: "pawprint.fill", value: "\(walk.pottyBreaks)", unit: "", label: "Potty Breaks")
-                    }
-                    .padding(.horizontal)
-                    
-                    Divider()
-                    
-                    // Payment section
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Payment")
-                            .font(.headline)
-                        
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Total")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                                
-                                Text("$\(String(format: "%.2f", walk.cost))")
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.green)
-                            }
-                            
-                            Spacer()
-                            
-                            Button(action: {
-                                // Action to view receipt
-                            }) {
-                                Text("View Receipt")
-                                    .font(.subheadline)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .background(Color.blue)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(8)
-                            }
-                        }
-                    }
-                    .padding(.horizontal)
-                    
-                    Divider()
-                    
-                    // Activities
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Activities")
-                            .font(.headline)
-                        
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 12) {
-                                ForEach(walk.activities, id: \.self) { activity in
-                                    ActivityChip(activity: activity)
-                                }
-                            }
-                        }
-                    }
-                    .padding(.horizontal)
-                    
-                    Divider()
-                    
-                    // Comments
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Comments")
-                            .font(.headline)
-                        
-                        Text(walk.comments)
-                            .font(.body)
-                            .padding()
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(8)
-                    }
-                    .padding(.horizontal)
-                    
-                    Divider()
-                    
-                    // Rating section
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Rating")
-                            .font(.headline)
-                        
-                        HStack {
-                            StarsView(rating: walk.rating)
-                            Text("(\(String(format: "%.1f", walk.rating)))")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .padding(.horizontal)
-                    
-                    // Photos if available
-                    if !walk.photos.isEmpty {
-                        Divider()
-                        
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("Photos")
-                                .font(.headline)
-                            
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
-                                    ForEach(walk.photos, id: \.self) { photo in
-                                        WalkPhotoView(imageName: photo)
-                                    }
-                                }
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                    
-                    // Map of route
-                    Divider()
-                    
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Walk Route")
-                            .font(.headline)
-                        
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.gray.opacity(0.2))
-                                .frame(height: 200)
-                            
-                            Image(systemName: "map")
-                                .font(.system(size: 50))
-                                .foregroundColor(.secondary)
-                            
-                            Text("Map View")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .offset(y: 40)
-                        }
-                    }
-                    .padding(.horizontal)
-                    
-                    Spacer(minLength: 40)
-                }
-                .padding(.vertical)
-            }
-            .navigationBarItems(trailing: Button("Done") {
-                presentationMode.wrappedValue.dismiss()
-            })
-            .navigationBarTitle("Walk Details", displayMode: .inline)
-        }
-    }
-    
-    func formattedDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .long
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
-    }
-}
-
-struct StarsView: View {
-    let rating: Double
-    
-    var body: some View {
-        HStack(spacing: 2) {
-            ForEach(0..<5) { index in
-                Image(systemName: index < Int(rating) ? "star.fill" :
-                       (index == Int(rating) && rating.truncatingRemainder(dividingBy: 1) >= 0.5 ? "star.leadinghalf.filled" : "star"))
-                    .font(.system(size: 12))
-                    .foregroundColor(.yellow)
-            }
-        }
-    }
-}
-
-struct StatCard: View {
-    let iconName: String
-    let value: String
-    let unit: String
-    let label: String
-    
-    var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: iconName)
-                .font(.system(size: 20))
-                .foregroundColor(.blue)
-            
-            HStack(alignment: .firstTextBaseline, spacing: 2) {
-                Text(value)
-                    .font(.title3)
-                    .fontWeight(.bold)
-                
-                Text(unit)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            Text(label)
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding()
-        .background(Color.blue.opacity(0.1))
-        .cornerRadius(12)
-    }
-}
-
-struct ActivityChip: View {
-    let activity: String
-    
-    var body: some View {
-        Text(activity)
-            .font(.subheadline)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(Color.blue.opacity(0.2))
-            .foregroundColor(.blue)
-            .cornerRadius(20)
-    }
-}
-
-struct WalkPhotoView: View {
-    let imageName: String
-    
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.gray.opacity(0.3))
-                .frame(width: 120, height: 120)
-            
-            Image(systemName: "photo")
-                .font(.system(size: 40))
-                .foregroundColor(.gray)
-        }
-    }
-}
-
-// Model
-struct Walk: Identifiable {
-    let id: UUID
-    let date: Date
-    let dogName: String
-    let partnerName: String
-    let partnerImage: String
-    let duration: Int // minutes
-    let distance: Double // miles
-    let cost: Double
-    let pottyBreaks: Int
-    let activities: [String]
-    let comments: String
-    let rating: Double
-    let photos: [String]
 }
 
 struct PastWalksView_Previews: PreviewProvider {
@@ -461,3 +443,5 @@ struct PastWalksView_Previews: PreviewProvider {
         PastWalksView()
     }
 }
+
+

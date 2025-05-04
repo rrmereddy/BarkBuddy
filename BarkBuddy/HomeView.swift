@@ -24,6 +24,8 @@ struct HomeView: View {
     @State private var selectedProfileUser: UserIDWrapper? = nil
     @State private var selectedFutureWalkUser: UserIDWrapper? = nil
     @State private var showProfileDogWalkerModalPending = false
+    @State private var showLogoutAlert = false
+    @State private var showLoginModal = false  // Added for logout navigation
     
     // Chat service for checking unread messages
     @StateObject private var chatService = ChatService()
@@ -74,6 +76,24 @@ struct HomeView: View {
                                      .offset(x: 8, y: -6)
                              }
                          }
+                     }
+                     
+                     Button(action: {
+                         logout()
+                     }) {
+                         Image(systemName: "rectangle.portrait.and.arrow.right")
+                             .foregroundColor(.red)
+                             .font(.system(size: 20))
+                     }
+                     .alert(isPresented: $showLogoutAlert) {
+                         Alert(
+                             title: Text("Log Out"),
+                             message: Text("Are you sure you want to log out?"),
+                             primaryButton: .destructive(Text("Log Out")) {
+                                 performLogout()
+                             },
+                             secondaryButton: .cancel()
+                         )
                      }
 
                      Button(action: {
@@ -284,6 +304,9 @@ struct HomeView: View {
              .sheet(isPresented: $showAcceptedChatsWalker) {
                 AcceptedChatView() // Correct view for walkers
              }
+             .sheet(isPresented: $showLoginModal) {
+                LoginView() // Show Login modal when logout is performed
+             }
 
             // Bottom Navigation (remains the same)
              HStack(spacing: 0) {
@@ -348,6 +371,23 @@ struct HomeView: View {
             self.isUserIDLoaded = false
             print("⚠️ HomeView: No user logged in. Auth.auth().currentUser is nil")
             // Handle the case where the user is not logged in (e.g., show login screen)
+        }
+    }
+    
+    // Function to handle logout button tap
+    private func logout() {
+        showLogoutAlert = true
+    }
+    
+    // Function to perform the actual logout
+    private func performLogout() {
+        do {
+            try Auth.auth().signOut()
+            print("✅ Successfully logged out")
+            // Show the Login modal
+            showLoginModal = true
+        } catch let error {
+            print("❌ Error signing out: \(error.localizedDescription)")
         }
     }
     

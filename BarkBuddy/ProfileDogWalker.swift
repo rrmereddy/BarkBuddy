@@ -44,6 +44,7 @@ public struct DogWalkerProfileView: View {
     @State private var ownerName: String = ""
     @State private var dogName: String = ""
     @State private var showChatCreatedAlert = false
+    @State private var navigateToChatList = false
     
     // ChatService for creating chat rooms
     @StateObject private var chatService = ChatService()
@@ -199,6 +200,10 @@ public struct DogWalkerProfileView: View {
                   MessageView(dogWalker: walker, isPresented: $showMessageView)
               }
           }
+         .sheet(isPresented: $navigateToChatList) {
+            // Present the appropriate chat view based on the user type (owner or walker)
+            DogOwnerChatView()
+        }
         .navigationBarHidden(true)
         .onAppear {
             fetchDogWalkers()
@@ -208,7 +213,10 @@ public struct DogWalkerProfileView: View {
             Alert(
                 title: Text("Walk Request Sent!"),
                 message: Text("You've requested a walk. The walker will need to confirm your request. Check your messages for updates."),
-                dismissButton: .default(Text("OK"))
+                dismissButton: .default(Text("OK")) {
+                    // Navigate to the chat list after they dismiss the alert
+                    navigateToChatList = true
+                }
             )
         }
     }
@@ -423,6 +431,8 @@ public struct DogWalkerProfileView: View {
         // Default owner name if not fetched
         let finalOwnerName = ownerName.isEmpty ? "Dog Owner" : ownerName
         
+        print("📱 Creating chat room: Owner=\(finalOwnerName), Walker=\(walkerName), Dog=\(finalDogName)")
+        
         // Now create the chat room
         chatService.createChatRoom(
             walkId: walkId,
@@ -436,7 +446,6 @@ public struct DogWalkerProfileView: View {
             ownerProfileImageURL: nil,
             walkerProfileImageURL: nil
         ) { result in
-            
             switch result {
             case .success(let chatRoomId):
                 print("✅ Chat room created: \(chatRoomId)")
@@ -447,7 +456,10 @@ public struct DogWalkerProfileView: View {
                     case .success:
                         print("✅ Owner marked walk as accepted")
                         
-                        // Show alert to user that chat is created
+                        // Send initial message
+                        self.sendInitialMessage(chatRoomId: chatRoomId, ownerId: ownerId, ownerName: finalOwnerName, walkerId: walkerId, walkerName: walkerName, dogName: finalDogName)
+                        
+                        // Show alert to user that chat is created (on main thread)
                         DispatchQueue.main.async {
                             self.showChatCreatedAlert = true
                         }
@@ -459,6 +471,26 @@ public struct DogWalkerProfileView: View {
                 
             case .failure(let error):
                 print("❌ Error creating chat room: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    // Helper function to send an initial message
+    private func sendInitialMessage(chatRoomId: String, ownerId: String, ownerName: String, walkerId: String, walkerName: String, dogName: String) {
+        let initialMessage = "Hi \(walkerName)! I'd like to request you to walk \(dogName). Let me know if you have any questions!"
+        
+        self.chatService.sendMessage(
+            chatRoomId: chatRoomId,
+            senderId: ownerId,
+            senderName: ownerName,
+            receiverId: walkerId,
+            text: initialMessage
+        ) { result in
+            switch result {
+            case .success:
+                print("✅ Initial message sent successfully")
+            case .failure(let error):
+                print("❌ Error sending initial message: \(error.localizedDescription)")
             }
         }
     }

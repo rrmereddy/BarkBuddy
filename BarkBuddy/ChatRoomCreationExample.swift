@@ -40,7 +40,7 @@ struct ChatRoomCreationExample: View {
                     .foregroundColor(.white)
                     .padding()
                     .frame(maxWidth: .infinity)
-                    .background(Color(hex: "FF6B6B"))
+                    .background(Color.fromHexCode("FF6B6B"))
                     .cornerRadius(12)
             }
             .padding(.horizontal)

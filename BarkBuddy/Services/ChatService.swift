@@ -438,6 +438,47 @@ class ChatService: ObservableObject {
         }
     }
     
+    /// Delete a chat room and its messages
+    func deleteChatRoom(chatRoomId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        // First, delete all messages in the chat room
+        db.collection("chatRooms").document(chatRoomId).collection("messages").getDocuments { [weak self] (snapshot, error) in
+            guard let self = self else { return }
+            
+            if let error = error {
+                print("Error getting messages to delete: \(error.localizedDescription)")
+                completion(.failure(error))
+                return
+            }
+            
+            // Create a batch to delete all messages
+            let batch = self.db.batch()
+            snapshot?.documents.forEach { document in
+                let messageRef = self.db.collection("chatRooms").document(chatRoomId).collection("messages").document(document.documentID)
+                batch.deleteDocument(messageRef)
+            }
+            
+            // Commit the batch deletion of messages
+            batch.commit { error in
+                if let error = error {
+                    print("Error deleting messages: \(error.localizedDescription)")
+                    completion(.failure(error))
+                    return
+                }
+                
+                // Then delete the chat room document
+                self.db.collection("chatRooms").document(chatRoomId).delete { error in
+                    if let error = error {
+                        print("Error deleting chat room: \(error.localizedDescription)")
+                        completion(.failure(error))
+                    } else {
+                        print("✅ Chat room and messages successfully deleted")
+                        completion(.success(()))
+                    }
+                }
+            }
+        }
+    }
+    
     // MARK: - Messages Functions
     
     /// Fetch messages for a specific chat room

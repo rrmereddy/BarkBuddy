@@ -65,7 +65,7 @@ struct DogOwnerChatView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(hex: "F6F6F6")
+                Color.fromHex("F6F6F6")
                     .edgesIgnoringSafeArea(.all)
                 
                 VStack(spacing: 0) {
@@ -76,13 +76,13 @@ struct DogOwnerChatView: View {
                         }) {
                             Image(systemName: "arrow.left")
                                 .font(.system(size: 20))
-                                .foregroundColor(Color(hex: "FF6B6B"))
+                                .foregroundColor(Color.fromHex("FF6B6B"))
                                 .padding(.trailing, 4)
                         }
                         
                         Text("BarkBuddy")
                             .font(.system(size: 28, weight: .bold))
-                            .foregroundColor(Color(hex: "FF6B6B"))
+                            .foregroundColor(Color.fromHex("FF6B6B"))
                         
                         Spacer()
                         
@@ -92,7 +92,7 @@ struct DogOwnerChatView: View {
                         }) {
                             Image(systemName: "gearshape.fill")
                                 .font(.system(size: 22))
-                                .foregroundColor(Color(hex: "FF6B6B"))
+                                .foregroundColor(Color.fromHex("FF6B6B"))
                         }
                     }
                     .padding(.horizontal)
@@ -154,7 +154,7 @@ struct DogOwnerChatView: View {
                                 Spacer()
                                 Image(systemName: "message.circle.fill")
                                     .font(.system(size: 50))
-                                    .foregroundColor(Color(hex: "FF6B6B"))
+                                    .foregroundColor(Color.fromHex("FF6B6B"))
                                     .padding(.bottom, 10)
                                 Text("No chats available")
                                     .font(.headline)
@@ -176,7 +176,7 @@ struct DogOwnerChatView: View {
                                         .foregroundColor(.white)
                                         .padding(.vertical, 10)
                                         .padding(.horizontal, 20)
-                                        .background(Color(hex: "FF6B6B"))
+                                        .background(Color.fromHex("FF6B6B"))
                                         .cornerRadius(8)
                                 }
                                 .padding(.top, 20)
@@ -186,7 +186,7 @@ struct DogOwnerChatView: View {
                             ScrollView {
                                 VStack(spacing: 0) {
                                     ForEach(filteredChatRooms) { chatRoom in
-                                        FirebaseChatRow(chatRoom: chatRoom, isWalker: false) {
+                                        OwnerChatRow(chatRoom: chatRoom, isWalker: false) {
                                             selectedChatRoom = chatRoom
                                             // Mark messages as read when opening chat
                                             if let userId = Auth.auth().currentUser?.uid {
@@ -206,6 +206,23 @@ struct DogOwnerChatView: View {
                                                 }
                                             }
                                         }
+                                        .contextMenu {
+                                            Button(role: .destructive, action: {
+                                                // Delete the chat room
+                                                if let chatRoomId = chatRoom.id {
+                                                    chatService.deleteChatRoom(chatRoomId: chatRoomId) { result in
+                                                        switch result {
+                                                        case .success:
+                                                            print("✅ Successfully deleted chat room")
+                                                        case .failure(let error):
+                                                            print("❌ Error deleting chat room: \(error.localizedDescription)")
+                                                        }
+                                                    }
+                                                }
+                                            }) {
+                                                Label("Delete Chat", systemImage: "trash")
+                                            }
+                                        }
                                         Divider()
                                             .padding(.leading, 80)
                                     }
@@ -218,7 +235,7 @@ struct DogOwnerChatView: View {
                         }
                     } else {
                         // Chat detail view
-                        FirebaseChatDetailView(
+                        OwnerChatDetailView(
                             chatRoom: selectedChatRoom!,
                             onBack: { selectedChatRoom = nil }
                         )
@@ -276,31 +293,29 @@ struct BottomNavButton: View {
         VStack(spacing: 4) {
             Image(systemName: iconName)
                 .font(.system(size: 20))
-                .foregroundColor(isSelected ? Color(hex: "FF6B6B") : Color.gray)
+                .foregroundColor(isSelected ? Color.fromHex("FF6B6B") : Color.gray)
             
             Text(text)
                 .font(.system(size: 12))
-                .foregroundColor(isSelected ? Color(hex: "FF6B6B") : Color.gray)
+                .foregroundColor(isSelected ? Color.fromHex("FF6B6B") : Color.gray)
         }
         .frame(maxWidth: .infinity)
     }
 }
 
-// Color Utilities
+// Color Utilities - Retain for backward compatibility
 struct ColorUtils {
     static func hexStringToColor(hex: String) -> Color {
-        var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
-        hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
-        
-        var rgb: UInt64 = 0
-        
-        Scanner(string: hexSanitized).scanHexInt64(&rgb)
-        
-        let red = Double((rgb & 0xFF0000) >> 16) / 255.0
-        let green = Double((rgb & 0x00FF00) >> 8) / 255.0
-        let blue = Double(rgb & 0x0000FF) / 255.0
-        
-        return Color(red: red, green: green, blue: blue)
+        // Use the shared implementation instead
+        return Color.fromHexCode(hex)
+    }
+}
+
+// Extension for Color(hex:) to avoid duplicate implementations
+extension Color {
+    // Use the shared implementation from ChatViewHelpers.swift
+    static func fromHex(_ hex: String) -> Color {
+        return Color.fromHexCode(hex)
     }
 }
 
@@ -316,8 +331,464 @@ struct BligView_Previews: PreviewProvider {
     }
 }
 
-struct new_AcceptedChatView: View {
+struct OwnerAcceptedChatView: View {
     var body: some View {
         DogOwnerChatView()
+    }
+}
+
+// Helper function for status color (needed by FirebaseChatRow)
+extension View {
+    func statusColor(for status: String) -> Color {
+        switch status.lowercased() {
+        case "confirmed":
+            return Color.green
+        case "en route", "in progress":
+            return Color.orange
+        case "scheduled":
+            return Color.blue
+        case "completed":
+            return Color.gray
+        case "cancelled":
+            return Color.red
+        default:
+            return Color.gray
+        }
+    }
+}
+
+// Implementation of OwnerChatRow (similar to WalkerChatRow)
+struct OwnerChatRow: View {
+    let chatRoom: ChatRoom
+    let isWalker: Bool
+    let action: () -> Void
+    @StateObject private var chatService = ChatService()
+    @State private var isProcessing = false
+    
+    // Hardcoded demo walker ID for checking
+    private let demoWalkerID = "IWWdFgkCojc2y6TFDPVFFickuMm1"
+    
+    // Helper computed property to check if this is a demo chat
+    private var isDemoChat: Bool {
+        return chatRoom.walkerId == demoWalkerID
+    }
+    
+    // Computed property to check if this walk needs action
+    private var needsAction: Bool {
+        if isWalker {
+            // Walker sees: Owner accepted but walker hasn't yet
+            return chatRoom.ownerAccepted && !chatRoom.walkerAccepted
+        } else {
+            // Owner sees: Can accept if neither has accepted yet
+            return !chatRoom.ownerAccepted && !chatRoom.walkerAccepted
+        }
+    }
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack(alignment: .bottomTrailing) {
+                if let profileImageURL = isWalker 
+                    ? chatRoom.ownerProfileImageURL 
+                    : chatRoom.walkerProfileImageURL,
+                   !profileImageURL.isEmpty {
+                    AsyncImage(url: URL(string: profileImageURL)) { image in
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 56, height: 56)
+                            .clipShape(Circle())
+                    } placeholder: {
+                        Image(systemName: isDemoChat ? "star.circle.fill" : "person.circle.fill")
+                            .resizable()
+                            .frame(width: 56, height: 56)
+                            .foregroundColor(isDemoChat ? Color.yellow : Color.fromHex("FF6B6B"))
+                            .background(isDemoChat ? Color.fromHex("FFFAE8") : Color.fromHex("FFE8E8"))
+                            .clipShape(Circle())
+                    }
+                } else {
+                    Image(systemName: isDemoChat ? "star.circle.fill" : "person.circle.fill")
+                        .resizable()
+                        .frame(width: 56, height: 56)
+                        .foregroundColor(isDemoChat ? Color.yellow : Color.fromHex("FF6B6B"))
+                        .background(isDemoChat ? Color.fromHex("FFFAE8") : Color.fromHex("FFE8E8"))
+                        .clipShape(Circle())
+                }
+                
+                // Show badge indicator based on status
+                if isWalker && chatRoom.ownerAccepted && !chatRoom.walkerAccepted {
+                    // New request badge for walker
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .padding(4)
+                        .background(Color.white)
+                        .clipShape(Circle())
+                        .foregroundColor(.red)
+                        .offset(x: 2, y: 2)
+                } else {
+                    // Regular badge
+                    Image(systemName: isDemoChat ? "star.fill" : "pawprint.fill")
+                        .padding(4)
+                        .background(Color.white)
+                        .clipShape(Circle())
+                        .foregroundColor(isDemoChat ? Color.yellow : Color.fromHex("FF6B6B"))
+                        .offset(x: 2, y: 2)
+                }
+            }
+            
+            Button(action: action) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        if isWalker {
+                            Text("\(chatRoom.ownerName)'s \(chatRoom.dogName)")
+                                .font(.system(size: 16, weight: .semibold))
+                        } else {
+                            Text(isDemoChat ? "\(chatRoom.walkerName) (Demo)" : chatRoom.walkerName)
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(isDemoChat ? Color.orange : Color.primary)
+                        }
+                        
+                        Spacer()
+                        
+                        if chatRoom.walkerAccepted && chatRoom.ownerAccepted {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                                .font(.system(size: 16))
+                        }
+                        
+                        Text(chatRoom.walkDateTime.formatDateTime())
+                            .font(.system(size: 14))
+                            .foregroundColor(.gray)
+                    }
+                    
+                    HStack {
+                        Text(chatRoom.walkStatus)
+                            .font(.system(size: 14))
+                            .foregroundColor(statusColor(for: chatRoom.walkStatus))
+                        
+                        if isDemoChat {
+                            Text("• Demo")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.orange)
+                        }
+                        
+                        if isWalker && chatRoom.ownerAccepted && !chatRoom.walkerAccepted {
+                            Text("• New Request")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.red)
+                                .italic()
+                        } else if chatRoom.ownerAccepted && !chatRoom.walkerAccepted {
+                            Text("• Awaiting walker")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.orange)
+                        }
+                    }
+                    
+                    Text(chatRoom.lastMessage)
+                        .font(.system(size: 14))
+                        .foregroundColor(.gray)
+                        .lineLimit(1)
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+        }
+        .padding(12)
+        .background(
+            chatRoom.ownerAccepted && !chatRoom.walkerAccepted && isWalker
+                ? Color.fromHex("FFECEC") // Brighter red background for pending requests
+                : (isDemoChat ? Color.fromHex("FFFEF7") : (needsAction ? Color.fromHex("FFF0F0") : Color.white))
+        )
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(
+                    chatRoom.ownerAccepted && !chatRoom.walkerAccepted && isWalker
+                        ? Color.red
+                        : (isDemoChat ? Color.yellow.opacity(0.3) : (needsAction ? Color.red.opacity(0.2) : Color.clear)),
+                    lineWidth: chatRoom.ownerAccepted && !chatRoom.walkerAccepted && isWalker ? 2 : 1
+                )
+        )
+        .shadow(
+            color: chatRoom.ownerAccepted && !chatRoom.walkerAccepted && isWalker ? Color.red.opacity(0.2) : Color.black.opacity(0.05),
+            radius: 4,
+            x: 0,
+            y: 2
+        )
+    }
+    
+    private func statusColor(for status: String) -> Color {
+        switch status.lowercased() {
+        case "confirmed":
+            return Color.green
+        case "en route", "in progress":
+            return Color.orange
+        case "scheduled":
+            return Color.blue
+        case "completed":
+            return Color.gray
+        case "cancelled":
+            return Color.red
+        default:
+            return Color.gray
+        }
+    }
+}
+
+// Implementation of OwnerChatDetailView (similar to WalkerChatDetailView)
+struct OwnerChatDetailView: View {
+    let chatRoom: ChatRoom
+    let onBack: () -> Void
+    @StateObject private var chatService = ChatService()
+    @State private var messageText = ""
+    @State private var isProcessingAccept = false
+    
+    // Hardcoded demo walker ID for checking
+    private let demoWalkerID = "IWWdFgkCojc2y6TFDPVFFickuMm1"
+    
+    // Helper computed property to check if this is a demo chat
+    private var isDemoChat: Bool {
+        return chatRoom.walkerId == demoWalkerID
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Chat header
+            HStack {
+                Button(action: onBack) {
+                    Image(systemName: "arrow.left")
+                        .font(.system(size: 20))
+                        .foregroundColor(Color.fromHex("FF6B6B"))
+                }
+                
+                if let profileImageURL = chatRoom.walkerProfileImageURL,
+                   !profileImageURL.isEmpty {
+                    AsyncImage(url: URL(string: profileImageURL)) { image in
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 40, height: 40)
+                            .clipShape(Circle())
+                            .padding(.leading, 8)
+                    } placeholder: {
+                        Image(systemName: isDemoChat ? "star.circle.fill" : "person.circle.fill")
+                            .resizable()
+                            .frame(width: 40, height: 40)
+                            .foregroundColor(isDemoChat ? Color.yellow : Color.fromHex("FF6B6B"))
+                            .padding(.leading, 8)
+                    }
+                } else {
+                    Image(systemName: isDemoChat ? "star.circle.fill" : "person.circle.fill")
+                        .resizable()
+                        .frame(width: 40, height: 40)
+                        .foregroundColor(isDemoChat ? Color.yellow : Color.fromHex("FF6B6B"))
+                        .padding(.leading, 8)
+                }
+                
+                VStack(alignment: .leading) {
+                    Text(isDemoChat ? "\(chatRoom.walkerName) (Demo)" : chatRoom.walkerName)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(isDemoChat ? Color.orange : Color.primary)
+                    
+                    Text("Walk: \(chatRoom.walkDateTime.formatDateTime())")
+                        .font(.system(size: 14))
+                        .foregroundColor(.gray)
+                }
+                
+                Spacer()
+                
+                // Add menu for options
+                Menu {
+                    Button(role: .destructive, action: {
+                        // Delete the chat room and go back
+                        if let chatRoomId = chatRoom.id {
+                            chatService.deleteChatRoom(chatRoomId: chatRoomId) { result in
+                                switch result {
+                                case .success:
+                                    print("✅ Successfully deleted chat room")
+                                    DispatchQueue.main.async {
+                                        onBack()
+                                    }
+                                case .failure(let error):
+                                    print("❌ Error deleting chat room: \(error.localizedDescription)")
+                                }
+                            }
+                        }
+                    }) {
+                        Label("Delete Chat", systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.system(size: 20))
+                        .foregroundColor(Color.fromHex("FF6B6B"))
+                }
+                
+                // Call button for non-demo chats
+                Button(action: {
+                    // Call action (could be implemented in a future update)
+                }) {
+                    Image(systemName: "phone.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(Color.fromHex("FF6B6B"))
+                        .padding(8)
+                        .background(Color.fromHex("FFE8E8"))
+                        .clipShape(Circle())
+                }
+            }
+            .padding()
+            .background(isDemoChat ? Color.fromHex("FFFEF7") : Color.white)
+            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+            
+            // Demo notice banner (only shown for demo chats)
+            if isDemoChat {
+                HStack {
+                    Image(systemName: "info.circle.fill")
+                        .foregroundColor(Color.orange)
+                    
+                    Text("This is a demo conversation. The walker will respond automatically to your messages.")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color.orange)
+                    
+                    Spacer()
+                }
+                .padding(8)
+                .background(Color.fromHex("FFFAE8"))
+                .cornerRadius(0)
+            }
+            
+            // Chat messages
+            ScrollViewReader { scrollView in
+                ScrollView {
+                    VStack(spacing: 16) {
+                        ForEach(chatService.messages) { message in
+                            OwnerMessageBubble(
+                                message: message,
+                                isFromCurrentUser: message.senderId == Auth.auth().currentUser?.uid,
+                                isDemoMessage: message.senderId == demoWalkerID
+                            )
+                            .id(message.id ?? "")
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 16)
+                }
+                .onChange(of: chatService.messages.count) { _ in
+                    if let lastMessageId = chatService.messages.last?.id {
+                        withAnimation {
+                            scrollView.scrollTo(lastMessageId, anchor: .bottom)
+                        }
+                    }
+                }
+            }
+            
+            // Message input
+            HStack(spacing: 12) {
+                TextField("Message", text: $messageText)
+                    .padding(10)
+                    .background(Color.fromHex("F6F6F6"))
+                    .cornerRadius(20)
+                
+                Button(action: {
+                    sendMessage()
+                }) {
+                    Image(systemName: "paperplane.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(Color.fromHex("FF6B6B"))
+                }
+                .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            .padding()
+            .background(Color.white)
+            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: -2)
+        }
+        .onAppear {
+            // Fetch messages when the view appears
+            if let chatRoomId = chatRoom.id {
+                chatService.fetchMessages(chatRoomId: chatRoomId)
+            }
+        }
+        .onDisappear {
+            // Detach listeners when view disappears
+            chatService.detachListeners()
+        }
+    }
+    
+    private func sendMessage() {
+        guard let userId = Auth.auth().currentUser?.uid,
+              let chatRoomId = chatRoom.id,
+              !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return
+        }
+        
+        // Determine if the current user is the walker or owner
+        let isWalker = userId == chatRoom.walkerId
+        let receiverId = isWalker ? chatRoom.ownerId : chatRoom.walkerId
+        let senderName = isWalker ? chatRoom.walkerName : chatRoom.ownerName
+        
+        chatService.sendMessage(
+            chatRoomId: chatRoomId,
+            senderId: userId,
+            senderName: senderName,
+            receiverId: receiverId,
+            text: messageText
+        ) { result in
+            switch result {
+            case .success:
+                messageText = ""
+            case .failure(let error):
+                print("Error sending message: \(error.localizedDescription)")
+            }
+        }
+    }
+}
+
+// Implementation of OwnerMessageBubble (similar to MessageBubble in shared code)
+struct OwnerMessageBubble: View {
+    let message: ChatMessage
+    let isFromCurrentUser: Bool
+    let isDemoMessage: Bool
+    
+    var body: some View {
+        HStack {
+            if isFromCurrentUser {
+                Spacer()
+            }
+            
+            VStack(alignment: isFromCurrentUser ? .trailing : .leading, spacing: 2) {
+                Text(message.text)
+                    .padding(12)
+                    .background(
+                        isFromCurrentUser 
+                            ? Color.fromHex("FF6B6B") 
+                            : (isDemoMessage ? Color.fromHex("FFFAE8") : Color.fromHex("F0F0F0"))
+                    )
+                    .foregroundColor(
+                        isFromCurrentUser 
+                            ? .white 
+                            : (isDemoMessage ? .black : .black)
+                    )
+                    .cornerRadius(20)
+                
+                HStack(spacing: 4) {
+                    if isDemoMessage && !isFromCurrentUser {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.orange)
+                    }
+                    
+                    Text(message.timestamp.formatTime())
+                        .font(.system(size: 12))
+                        .foregroundColor(isDemoMessage && !isFromCurrentUser ? .orange : .gray)
+                    
+                    if isDemoMessage && !isFromCurrentUser {
+                        Text("Demo")
+                            .font(.system(size: 10))
+                            .foregroundColor(.orange)
+                    }
+                }
+                .padding(.horizontal, 4)
+            }
+            
+            if !isFromCurrentUser {
+                Spacer()
+            }
+        }
     }
 }

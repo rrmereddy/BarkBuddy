@@ -63,7 +63,7 @@ struct AcceptedChatView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color(hex: "F6F6F6")
+                Color.fromHexCode("F6F6F6")
                     .edgesIgnoringSafeArea(.all)
                 
                 VStack(spacing: 0) {
@@ -74,13 +74,13 @@ struct AcceptedChatView: View {
                         }) {
                             Image(systemName: "arrow.left")
                                 .font(.system(size: 20))
-                                .foregroundColor(Color(hex: "FF6B6B"))
+                                .foregroundColor(Color.fromHexCode("FF6B6B"))
                                 .padding(.trailing, 4)
                         }
                         
                         Text("BarkBuddy")
                             .font(.system(size: 28, weight: .bold))
-                            .foregroundColor(Color(hex: "FF6B6B"))
+                            .foregroundColor(Color.fromHexCode("FF6B6B"))
                         
                         Spacer()
                         
@@ -89,7 +89,7 @@ struct AcceptedChatView: View {
                         }) {
                             Image(systemName: "person.circle")
                                 .font(.system(size: 22))
-                                .foregroundColor(Color(hex: "FF6B6B"))
+                                .foregroundColor(Color.fromHexCode("FF6B6B"))
                         }
                     }
                     .padding(.horizontal)
@@ -153,7 +153,7 @@ struct AcceptedChatView: View {
                             ScrollView {
                                 VStack(spacing: 8) {
                                     ForEach(pendingRequestsRooms) { chatRoom in
-                                        FirebaseChatRow(chatRoom: chatRoom, isWalker: true) {
+                                        WalkerChatRow(chatRoom: chatRoom, isWalker: true) {
                                             selectedChatRoom = chatRoom
                                             // Mark messages as read when opening chat
                                             if let userId = Auth.auth().currentUser?.uid {
@@ -170,6 +170,23 @@ struct AcceptedChatView: View {
                                                 .stroke(Color.red, lineWidth: 2)
                                         )
                                         .padding(.horizontal)
+                                        .contextMenu {
+                                            Button(role: .destructive, action: {
+                                                // Delete the chat room
+                                                if let chatRoomId = chatRoom.id {
+                                                    chatService.deleteChatRoom(chatRoomId: chatRoomId) { result in
+                                                        switch result {
+                                                        case .success:
+                                                            print("✅ Successfully deleted chat room")
+                                                        case .failure(let error):
+                                                            print("❌ Error deleting chat room: \(error.localizedDescription)")
+                                                        }
+                                                    }
+                                                }
+                                            }) {
+                                                Label("Delete Chat", systemImage: "trash")
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -194,7 +211,7 @@ struct AcceptedChatView: View {
                                 }
                                 .padding(8)
                                 .frame(maxWidth: .infinity)
-                                .background(Color(hex: "FFFAE8"))
+                                .background(Color.fromHexCode("FFFAE8"))
                                 .cornerRadius(8)
                                 .padding(.horizontal)
                                 .padding(.top, 8)
@@ -230,7 +247,7 @@ struct AcceptedChatView: View {
                                                 .foregroundColor(.white)
                                                 .padding(.vertical, 10)
                                                 .padding(.horizontal, 20)
-                                                .background(Color(hex: "FF6B6B"))
+                                                .background(Color.fromHexCode("FF6B6B"))
                                                 .cornerRadius(8)
                                         }
                                         .padding(.top, 20)
@@ -241,7 +258,7 @@ struct AcceptedChatView: View {
                                     ScrollView {
                                         VStack(spacing: 0) {
                                             ForEach(filteredChatRooms) { chatRoom in
-                                                FirebaseChatRow(chatRoom: chatRoom, isWalker: true) {
+                                                WalkerChatRow(chatRoom: chatRoom, isWalker: true) {
                                                     selectedChatRoom = chatRoom
                                                     // Mark messages as read when opening chat
                                                     if let userId = Auth.auth().currentUser?.uid {
@@ -263,6 +280,23 @@ struct AcceptedChatView: View {
                                                 }
                                                 Divider()
                                                     .padding(.leading, 80)
+                                                .contextMenu {
+                                                    Button(role: .destructive, action: {
+                                                        // Delete the chat room
+                                                        if let chatRoomId = chatRoom.id {
+                                                            chatService.deleteChatRoom(chatRoomId: chatRoomId) { result in
+                                                                switch result {
+                                                                case .success:
+                                                                    print("✅ Successfully deleted chat room")
+                                                                case .failure(let error):
+                                                                    print("❌ Error deleting chat room: \(error.localizedDescription)")
+                                                                }
+                                                            }
+                                                        }
+                                                    }) {
+                                                        Label("Delete Chat", systemImage: "trash")
+                                                    }
+                                                }
                                             }
                                         }
                                         .padding(.top, 8)
@@ -289,7 +323,7 @@ struct AcceptedChatView: View {
                             ScrollView {
                                 VStack(spacing: 0) {
                                     ForEach(filteredChatRooms) { chatRoom in
-                                        FirebaseChatRow(chatRoom: chatRoom, isWalker: true) {
+                                        WalkerChatRow(chatRoom: chatRoom, isWalker: true) {
                                             selectedChatRoom = chatRoom
                                             // Mark messages as read when opening chat
                                             if let userId = Auth.auth().currentUser?.uid {
@@ -311,6 +345,23 @@ struct AcceptedChatView: View {
                                         }
                                         Divider()
                                             .padding(.leading, 80)
+                                        .contextMenu {
+                                            Button(role: .destructive, action: {
+                                                // Delete the chat room
+                                                if let chatRoomId = chatRoom.id {
+                                                    chatService.deleteChatRoom(chatRoomId: chatRoomId) { result in
+                                                        switch result {
+                                                        case .success:
+                                                            print("✅ Successfully deleted chat room")
+                                                        case .failure(let error):
+                                                            print("❌ Error deleting chat room: \(error.localizedDescription)")
+                                                        }
+                                                    }
+                                                }
+                                            }) {
+                                                Label("Delete Chat", systemImage: "trash")
+                                            }
+                                        }
                                     }
                                 }
                                 .padding(.top, 8)
@@ -321,7 +372,7 @@ struct AcceptedChatView: View {
                         }
                     } else {
                         // Chat detail view
-                        FirebaseChatDetailView(
+                        WalkerChatDetailView(
                             chatRoom: selectedChatRoom!,
                             onBack: { selectedChatRoom = nil }
                         )
@@ -367,7 +418,8 @@ struct AcceptedChatView: View {
     }
 }
 
-struct FirebaseChatRow: View {
+// Rename to avoid duplicate declaration with AcceptedChatsOwner.swift
+struct WalkerChatRow: View {
     let chatRoom: ChatRoom
     let isWalker: Bool
     let action: () -> Void
@@ -410,16 +462,16 @@ struct FirebaseChatRow: View {
                         Image(systemName: isDemoChat ? "star.circle.fill" : "person.circle.fill")
                             .resizable()
                             .frame(width: 56, height: 56)
-                            .foregroundColor(isDemoChat ? Color.yellow : Color(hex: "FF6B6B"))
-                            .background(isDemoChat ? Color(hex: "FFFAE8") : Color(hex: "FFE8E8"))
+                            .foregroundColor(isDemoChat ? Color.yellow : Color.fromHexCode("FF6B6B"))
+                            .background(isDemoChat ? Color.fromHexCode("FFFAE8") : Color.fromHexCode("FFE8E8"))
                             .clipShape(Circle())
                     }
                 } else {
                     Image(systemName: isDemoChat ? "star.circle.fill" : "person.circle.fill")
                         .resizable()
                         .frame(width: 56, height: 56)
-                        .foregroundColor(isDemoChat ? Color.yellow : Color(hex: "FF6B6B"))
-                        .background(isDemoChat ? Color(hex: "FFFAE8") : Color(hex: "FFE8E8"))
+                        .foregroundColor(isDemoChat ? Color.yellow : Color.fromHexCode("FF6B6B"))
+                        .background(isDemoChat ? Color.fromHexCode("FFFAE8") : Color.fromHexCode("FFE8E8"))
                         .clipShape(Circle())
                 }
                 
@@ -438,7 +490,7 @@ struct FirebaseChatRow: View {
                         .padding(4)
                         .background(Color.white)
                         .clipShape(Circle())
-                        .foregroundColor(isDemoChat ? Color.yellow : Color(hex: "FF6B6B"))
+                        .foregroundColor(isDemoChat ? Color.yellow : Color.fromHexCode("FF6B6B"))
                         .offset(x: 2, y: 2)
                 }
             }
@@ -530,8 +582,8 @@ struct FirebaseChatRow: View {
         .padding(12)
         .background(
             chatRoom.ownerAccepted && !chatRoom.walkerAccepted && isWalker
-                ? Color(hex: "FFECEC") // Brighter red background for pending requests
-                : (isDemoChat ? Color(hex: "FFFEF7") : (needsAction ? Color(hex: "FFF0F0") : Color.white))
+                ? Color.fromHexCode("FFECEC") // Brighter red background for pending requests
+                : (isDemoChat ? Color.fromHexCode("FFFEF7") : (needsAction ? Color.fromHexCode("FFF0F0") : Color.white))
         )
         .cornerRadius(12)
         .overlay(
@@ -588,7 +640,8 @@ struct FirebaseChatRow: View {
     }
 }
 
-struct FirebaseChatDetailView: View {
+// Rename to avoid duplicate declaration with AcceptedChatsOwner.swift
+struct WalkerChatDetailView: View {
     @StateObject private var chatService = ChatService()
     @State private var messageText = ""
     @State private var isProcessingAccept = false
@@ -616,7 +669,7 @@ struct FirebaseChatDetailView: View {
                 Button(action: onBack) {
                     Image(systemName: "arrow.left")
                         .font(.system(size: 20))
-                        .foregroundColor(Color(hex: "FF6B6B"))
+                        .foregroundColor(Color.fromHexCode("FF6B6B"))
                 }
                 
                 if let profileImageURL = Auth.auth().currentUser?.uid == chatRoom.walkerId
@@ -634,14 +687,14 @@ struct FirebaseChatDetailView: View {
                         Image(systemName: isDemoChat ? "star.circle.fill" : "person.circle.fill")
                             .resizable()
                             .frame(width: 40, height: 40)
-                            .foregroundColor(isDemoChat ? Color.yellow : Color(hex: "FF6B6B"))
+                            .foregroundColor(isDemoChat ? Color.yellow : Color.fromHexCode("FF6B6B"))
                             .padding(.leading, 8)
                     }
                 } else {
                     Image(systemName: isDemoChat ? "star.circle.fill" : "person.circle.fill")
                         .resizable()
                         .frame(width: 40, height: 40)
-                        .foregroundColor(isDemoChat ? Color.yellow : Color(hex: "FF6B6B"))
+                        .foregroundColor(isDemoChat ? Color.yellow : Color.fromHexCode("FF6B6B"))
                         .padding(.leading, 8)
                 }
                 
@@ -662,6 +715,32 @@ struct FirebaseChatDetailView: View {
                 
                 Spacer()
                 
+                // Add menu for options
+                Menu {
+                    Button(role: .destructive, action: {
+                        // Delete the chat room and go back
+                        if let chatRoomId = chatRoom.id {
+                            chatService.deleteChatRoom(chatRoomId: chatRoomId) { result in
+                                switch result {
+                                case .success:
+                                    print("✅ Successfully deleted chat room")
+                                    DispatchQueue.main.async {
+                                        onBack()
+                                    }
+                                case .failure(let error):
+                                    print("❌ Error deleting chat room: \(error.localizedDescription)")
+                                }
+                            }
+                        }
+                    }) {
+                        Label("Delete Chat", systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.system(size: 20))
+                        .foregroundColor(Color.fromHexCode("FF6B6B"))
+                }
+                
                 if isDemoChat {
                     // For demo chats, show an info button instead of a call button
                     Button(action: {
@@ -671,7 +750,7 @@ struct FirebaseChatDetailView: View {
                             .font(.system(size: 20))
                             .foregroundColor(Color.yellow)
                             .padding(8)
-                            .background(Color(hex: "FFFAE8"))
+                            .background(Color.fromHexCode("FFFAE8"))
                             .clipShape(Circle())
                     }
                 } else {
@@ -681,15 +760,15 @@ struct FirebaseChatDetailView: View {
                     }) {
                         Image(systemName: "phone.fill")
                             .font(.system(size: 20))
-                            .foregroundColor(Color(hex: "FF6B6B"))
+                            .foregroundColor(Color.fromHexCode("FF6B6B"))
                             .padding(8)
-                            .background(Color(hex: "FFE8E8"))
+                            .background(Color.fromHexCode("FFE8E8"))
                             .clipShape(Circle())
                     }
                 }
             }
             .padding()
-            .background(isDemoChat ? Color(hex: "FFFEF7") : Color.white)
+            .background(isDemoChat ? Color.fromHexCode("FFFEF7") : Color.white)
             .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
             
             // Demo notice banner (only shown for demo chats)
@@ -705,7 +784,7 @@ struct FirebaseChatDetailView: View {
                     Spacer()
                 }
                 .padding(8)
-                .background(Color(hex: "FFFAE8"))
+                .background(Color.fromHexCode("FFFAE8"))
                 .cornerRadius(0)
             }
             
@@ -745,7 +824,7 @@ struct FirebaseChatDetailView: View {
                     .disabled(isProcessingAccept)
                 }
                 .padding(12)
-                .background(Color(hex: "4CAF50"))
+                .background(Color.fromHexCode("4CAF50"))
                 .cornerRadius(0)
             }
             
@@ -754,7 +833,7 @@ struct FirebaseChatDetailView: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         ForEach(chatService.messages) { message in
-                            MessageBubble(
+                            WalkerMessageBubble(
                                 message: message,
                                 isFromCurrentUser: message.senderId == Auth.auth().currentUser?.uid,
                                 isDemoMessage: message.senderId == demoWalkerID
@@ -778,7 +857,7 @@ struct FirebaseChatDetailView: View {
             HStack(spacing: 12) {
                 TextField("Message", text: $messageText)
                     .padding(10)
-                    .background(Color(hex: "F6F6F6"))
+                    .background(Color.fromHexCode("F6F6F6"))
                     .cornerRadius(20)
                 
                 Button(action: {
@@ -786,7 +865,7 @@ struct FirebaseChatDetailView: View {
                 }) {
                     Image(systemName: "paperplane.fill")
                         .font(.system(size: 22))
-                        .foregroundColor(Color(hex: "FF6B6B"))
+                        .foregroundColor(Color.fromHexCode("FF6B6B"))
                 }
                 .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
@@ -854,7 +933,8 @@ struct FirebaseChatDetailView: View {
     }
 }
 
-struct MessageBubble: View {
+// Rename to avoid duplicate declaration with shared code
+struct WalkerMessageBubble: View {
     let message: ChatMessage
     let isFromCurrentUser: Bool
     let isDemoMessage: Bool
@@ -870,8 +950,8 @@ struct MessageBubble: View {
                     .padding(12)
                     .background(
                         isFromCurrentUser 
-                            ? Color(hex: "FF6B6B") 
-                            : (isDemoMessage ? Color(hex: "FFFAE8") : Color(hex: "F0F0F0"))
+                            ? Color.fromHexCode("FF6B6B") 
+                            : (isDemoMessage ? Color.fromHexCode("FFFAE8") : Color.fromHexCode("F0F0F0"))
                     )
                     .foregroundColor(
                         isFromCurrentUser 
@@ -904,33 +984,6 @@ struct MessageBubble: View {
                 Spacer()
             }
         }
-    }
-}
-
-// Helper for hex colors
-extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 3: // RGB (12-bit)
-            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6: // RGB (24-bit)
-            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8: // ARGB (32-bit)
-            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-        default:
-            (a, r, g, b) = (1, 1, 1, 0)
-        }
-        self.init(
-            .sRGB,
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue: Double(b) / 255,
-            opacity: Double(a) / 255
-        )
     }
 }
 

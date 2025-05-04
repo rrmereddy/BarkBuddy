@@ -52,8 +52,9 @@ public struct DogWalkerProfileView: View {
     private var db = Firestore.firestore()
     
     public init(userID: String) {
-            self.userID = userID
-        print(userID)
+        self.userID = userID
+        print("DogWalkerProfileView initialized with userID: \(userID)")
+        // Could add validation here if needed
     }
 
     public var body: some View {
@@ -214,34 +215,30 @@ public struct DogWalkerProfileView: View {
 
     // --- MODIFIED handleSwipe ---
     private func handleSwipe(width: CGFloat, walker: DogWalker) {
-            guard let swipedWalkerIndex = dogWalkers.firstIndex(where: { $0.id == walker.id }),
-                  swipedWalkerIndex == currentIndex else {
+        guard let swipedWalkerIndex = dogWalkers.firstIndex(where: { $0.id == walker.id }),
+              swipedWalkerIndex == currentIndex else {
+            offset = .zero
+            return
+        }
+
+        let swipeThreshold: CGFloat = 150
+        var performStateUpdate: (() -> Void)? = nil
+
+        if width > swipeThreshold { // Right swipe (like/accept)
+            print("Accepted \(walker.name)")
+
+            // --- Firestore Update Logic ---
+            // Check if userID is valid before attempting to update Firestore
+            if self.userID.isEmpty {
+                print("Error: Invalid userID ('\(self.userID)'). Cannot update Firestore.")
+                // Reset offset but let the UI continue (optional behavior)
                 offset = .zero
-                return
-            }
-
-            let swipeThreshold: CGFloat = 150
-            var performStateUpdate: (() -> Void)? = nil
-
-            if width > swipeThreshold { // Right swipe (like/accept)
-                print("Accepted \(walker.name)")
-
-                // --- Firestore Update Logic ---
-                // Make sure the passed-in userID is valid (e.g., not empty if that's possible)
-                guard !self.userID.isEmpty else { // Or use a more robust check if needed
-                    print("Error: Invalid userID ('\(self.userID)'). Cannot update Firestore.")
-                    // Reset offset but perhaps prevent advancing if the ID is truly invalid
-                    offset = .zero
-                    // Decide if you should return or just log the error and proceed visually
-                    // For now, let's prevent the DB update and UI advance on invalid ID:
-                     return
-                }
-
-                 // V V V V V V V V V V V V V V V V V V V V V V V V V
-                 // USE self.userID here
-                 let userDocRef = db.collection("users").document(self.userID)
-                 // ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^
-
+                // If you want to prevent the UI update on invalid ID, return here
+                // return
+            } else {
+                // Valid userID, proceed with Firestore update
+                let userDocRef = db.collection("users").document(self.userID)
+                
                 guard let walkerID = walker.firebaseDocId else {
                     print("❌ Walker ID missing for \(walker.name)")
                     return
@@ -258,35 +255,36 @@ public struct DogWalkerProfileView: View {
                     if let error = error {
                         print("❌ Error updating accepted_walkers: \(error.localizedDescription)")
                     } else {
-                        print("✅ Successfully added \(walker.name) (ID: \(walkerID)) to accepted_walkers")
+                        print("✅ Successfully added \(walker.name) (ID: \(walkerID)) to accepted_walkers for user \(self.userID)")
                         
                         // After successfully updating accepted_walkers, create a chat room
                         self.createChatRoomForAcceptedWalker(ownerId: self.userID, walkerId: walkerID, walkerName: walker.name)
                     }
                 }
-                // --- End Firestore Update Logic ---
-
-                performStateUpdate = { self.advanceIndex() }
-
-            } else if width < -swipeThreshold { // Left swipe (skip)
-                print("Skipped \(walker.name)")
-                performStateUpdate = {
-                    self.skippedWalkers.insert(walker, at: 0)
-                    if self.skippedWalkers.count > 10 { self.skippedWalkers.removeLast() }
-                    self.advanceIndex()
-                }
             }
+            // --- End Firestore Update Logic ---
 
-            // Reset offset smoothly if it's not a decisive swipe
-            if performStateUpdate == nil {
-                offset = .zero
-            } else {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                    performStateUpdate?()
-                    self.offset = .zero
-                }
+            performStateUpdate = { self.advanceIndex() }
+
+        } else if width < -swipeThreshold { // Left swipe (skip)
+            print("Skipped \(walker.name)")
+            performStateUpdate = {
+                self.skippedWalkers.insert(walker, at: 0)
+                if self.skippedWalkers.count > 10 { self.skippedWalkers.removeLast() }
+                self.advanceIndex()
             }
         }
+
+        // Reset offset smoothly if it's not a decisive swipe
+        if performStateUpdate == nil {
+            offset = .zero
+        } else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                performStateUpdate?()
+                self.offset = .zero
+            }
+        }
+    }
 
     // Helper function to advance the index
     private func advanceIndex() {

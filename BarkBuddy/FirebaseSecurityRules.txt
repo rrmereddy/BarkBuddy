@@ -1,0 +1,116 @@
+// Recommended Firestore Security Rules for BarkBuddy Chat Functionality
+// Copy these rules to your Firebase Console
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default rule - deny all access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    // User profile rules
+    match /users/{userId} {
+      // Allow users to read/write only their own documents
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow users to read other users' public profile info
+      allow read: if request.auth != null;
+    }
+    
+    // Chat room rules
+    match /chatRooms/{chatRoomId} {
+      // Users can read chat rooms where they are either the owner or walker
+      allow read: if request.auth != null && 
+                  (resource.data.ownerId == request.auth.uid || 
+                   resource.data.walkerId == request.auth.uid);
+      
+      // Users can create chat rooms if they are authenticated
+      // In production, you might want more specific rules
+      allow create: if request.auth != null;
+      
+      // Users can update chat rooms where they are either owner or walker
+      allow update: if request.auth != null && 
+                    (resource.data.ownerId == request.auth.uid || 
+                     resource.data.walkerId == request.auth.uid);
+    }
+    
+    // Chat messages rules
+    match /chatRooms/{chatRoomId}/messages/{messageId} {
+      // Users can read messages in chat rooms where they are either owner or walker
+      allow read: if request.auth != null && 
+                  get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.ownerId == request.auth.uid || 
+                  get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.walkerId == request.auth.uid;
+      
+      // Users can create messages in chat rooms where they are either owner or walker
+      // Also verifies the senderId matches their auth uid
+      allow create: if request.auth != null && 
+                    request.resource.data.senderId == request.auth.uid &&
+                    (get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.ownerId == request.auth.uid || 
+                     get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.walkerId == request.auth.uid);
+                   
+      // Users can update only the isRead field on messages sent to them
+      allow update: if request.auth != null && 
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']) &&
+                    request.resource.data.receiverId == request.auth.uid &&
+                    (get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.ownerId == request.auth.uid || 
+                     get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.walkerId == request.auth.uid);
+    }
+    
+    // Walk data rules
+    match /walks/{walkId} {
+      // Users can read walks where they are either owner or walker
+      allow read: if request.auth != null && 
+                  (resource.data.ownerId == request.auth.uid || 
+                   resource.data.walkerId == request.auth.uid);
+                   
+      // Users can create walks if they're authenticated
+      allow create: if request.auth != null;
+      
+      // Users can update walks where they are either owner or walker
+      allow update: if request.auth != null && 
+                    (resource.data.ownerId == request.auth.uid || 
+                     resource.data.walkerId == request.auth.uid);
+    }
+    
+    // Additional rules for app-specific collections can be added here
+  }
+}
+
+// Recommended Storage Rules for profile images and chat attachments
+// Copy these rules to your Firebase Storage Rules section
+
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Default rule - deny all access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+    
+    // Profile image rules
+    match /profileImages/{userId}/{fileName} {
+      // Allow users to read any profile image
+      allow read: if request.auth != null;
+      
+      // Allow users to upload only their own profile images
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Chat attachment rules
+    match /chatAttachments/{chatRoomId}/{fileName} {
+      // Users can read attachments for chats they are part of
+      // This requires a Firestore check
+      allow read: if request.auth != null && 
+                 (exists(/databases/$(database)/documents/chatRooms/$(chatRoomId)) && 
+                  (get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.ownerId == request.auth.uid || 
+                   get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.walkerId == request.auth.uid));
+      
+      // Users can upload attachments for chats they are part of
+      allow write: if request.auth != null && 
+                  (exists(/databases/$(database)/documents/chatRooms/$(chatRoomId)) && 
+                   (get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.ownerId == request.auth.uid || 
+                    get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.walkerId == request.auth.uid));
+    }
+  }
+} 

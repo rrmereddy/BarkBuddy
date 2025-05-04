@@ -1,4 +1,6 @@
 import SwiftUI
+import FirebaseAuth
+import FirebaseFirestore
 
 // MARK: - Models
 struct WalkerChat: Identifiable {
@@ -20,60 +22,77 @@ struct WalkerMessage: Identifiable {
 
 // MARK: - Main View
 struct DogOwnerChatView: View {
+    @StateObject private var chatService = ChatService()
     @State private var searchText = ""
-    @State private var selectedChat: WalkerChat?
+    @State private var selectedChatRoom: ChatRoom?
     @State private var messageText = ""
-    @State private var activeTab = 0
+    @State private var selectedFilter = 0
+    @State private var isMenuOpen = false
+    @Environment(\.presentationMode) var presentationMode
     
-    // Sample data
-    let chats = [
-        WalkerChat(id: "1", walkerName: "Alex", rating: "4.9", walkStatus: "Confirmed", walkTime: "Today, 4:30 PM", lastMessage: "I'll be at your place at 4:30 PM sharp!", avatar: "person.circle.fill"),
-        WalkerChat(id: "2", walkerName: "Jordan", rating: "4.7", walkStatus: "En Route", walkTime: "Today, 1:15 PM", lastMessage: "I'm about 5 minutes away from your location.", avatar: "person.circle.fill"),
-        WalkerChat(id: "3", walkerName: "Taylor", rating: "4.8", walkStatus: "Scheduled", walkTime: "Tomorrow, 10:00 AM", lastMessage: "Looking forward to meeting Max tomorrow morning!", avatar: "person.circle.fill"),
-        WalkerChat(id: "4", walkerName: "Casey", rating: "5.0", walkStatus: "Completed", walkTime: "Yesterday, 3:30 PM", lastMessage: "Max was such a good boy today! See you next week.", avatar: "person.circle.fill")
-    ]
+    // Filters
+    let filters = ["All Walks", "Today", "This Week"]
     
-    var filteredChats: [WalkerChat] {
-        if searchText.isEmpty {
-            return chats
-        } else {
-            return chats.filter {
-                $0.walkerName.localizedCaseInsensitiveContains(searchText) ||
-                $0.walkStatus.localizedCaseInsensitiveContains(searchText)
+    var filteredChatRooms: [ChatRoom] {
+        let rooms = chatService.chatRooms
+        
+        // First apply search filter
+        var filtered = searchText.isEmpty ? rooms : rooms.filter {
+            $0.walkerName.localizedCaseInsensitiveContains(searchText) ||
+            $0.dogName.localizedCaseInsensitiveContains(searchText)
+        }
+        
+        // Then apply date filter
+        if selectedFilter == 1 { // Today
+            let today = Calendar.current.startOfDay(for: Date())
+            filtered = filtered.filter {
+                Calendar.current.isDate($0.walkDateTime, inSameDayAs: today)
+            }
+        } else if selectedFilter == 2 { // This Week
+            let today = Date()
+            let calendar = Calendar.current
+            let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today))!
+            let weekEnd = calendar.date(byAdding: .day, value: 7, to: weekStart)!
+            
+            filtered = filtered.filter {
+                $0.walkDateTime >= weekStart && $0.walkDateTime < weekEnd
             }
         }
+        
+        return filtered
     }
     
     var body: some View {
         NavigationView {
             ZStack {
-                ColorUtils.colorFromHex("F8F6FF")
+                Color(hex: "F6F6F6")
                     .edgesIgnoringSafeArea(.all)
                 
                 VStack(spacing: 0) {
                     // Header
                     HStack {
-                        Text("BakBuddy")
+                        Button(action: {
+                            presentationMode.wrappedValue.dismiss()
+                        }) {
+                            Image(systemName: "arrow.left")
+                                .font(.system(size: 20))
+                                .foregroundColor(Color(hex: "FF6B6B"))
+                                .padding(.trailing, 4)
+                        }
+                        
+                        Text("BarkBuddy")
                             .font(.system(size: 28, weight: .bold))
-                            .foregroundColor(ColorUtils.colorFromHex("6B7AFF"))
+                            .foregroundColor(Color(hex: "FF6B6B"))
                         
                         Spacer()
                         
                         Button(action: {
-                            // Notifications action
+                            // Settings
+                            isMenuOpen.toggle()
                         }) {
-                            Image(systemName: "bell")
-                                .font(.system(size: 20))
-                                .foregroundColor(ColorUtils.colorFromHex("6B7AFF"))
-                        }
-                        
-                        Button(action: {
-                            // Profile action
-                        }) {
-                            Image(systemName: "person.circle")
+                            Image(systemName: "gearshape.fill")
                                 .font(.system(size: 22))
-                                .foregroundColor(ColorUtils.colorFromHex("6B7AFF"))
-                                .padding(.leading, 12)
+                                .foregroundColor(Color(hex: "FF6B6B"))
                         }
                     }
                     .padding(.horizontal)
@@ -84,7 +103,7 @@ struct DogOwnerChatView: View {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(.gray)
                         
-                        TextField("Search walkers", text: $searchText)
+                        TextField("Search chats", text: $searchText)
                             .font(.system(size: 16))
                     }
                     .padding(10)
@@ -93,425 +112,195 @@ struct DogOwnerChatView: View {
                     .padding(.horizontal)
                     .padding(.vertical, 8)
                     
-                    // Tab selector
-                    HStack(spacing: 0) {
-                        TabButtonView(title: "Active Walks", isSelected: activeTab == 0) {
-                            activeTab = 0
-                        }
-                        
-                        TabButtonView(title: "History", isSelected: activeTab == 1) {
-                            activeTab = 1
+                    // Segmented control for filters
+                    Picker("Filter", selection: $selectedFilter) {
+                        ForEach(0..<filters.count, id: \.self) { index in
+                            Text(filters[index]).tag(index)
                         }
                     }
+                    .pickerStyle(SegmentedPickerStyle())
                     .padding(.horizontal)
                     .padding(.bottom, 8)
                     
-                    if selectedChat == nil {
-                        // Chat list view when no chat is selected
-                        ScrollView {
-                            VStack(spacing: 12) {
-                                ForEach(filteredChats) { chat in
-                                    WalkerChatRow(chat: chat) {
-                                        selectedChat = chat
+                    Text("Your Dogs' Walks")
+                        .font(.headline)
+                        .foregroundColor(.gray)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal)
+                        .padding(.top, 4)
+                    
+                    // Chat list
+                    if selectedChatRoom == nil {
+                        if Auth.auth().currentUser == nil {
+                            // User is not authenticated
+                            VStack {
+                                Spacer()
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.system(size: 50))
+                                    .foregroundColor(.orange)
+                                    .padding(.bottom, 10)
+                                Text("Not Signed In")
+                                    .font(.headline)
+                                    .foregroundColor(.orange)
+                                Text("You need to be signed in to view your messages.\nPlease sign in using the profile icon on the home screen.")
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal)
+                                Spacer()
+                            }
+                        } else if chatService.chatRooms.isEmpty {
+                            VStack {
+                                Spacer()
+                                Image(systemName: "message.circle.fill")
+                                    .font(.system(size: 50))
+                                    .foregroundColor(Color(hex: "FF6B6B"))
+                                    .padding(.bottom, 10)
+                                Text("No chats available")
+                                    .font(.headline)
+                                    .foregroundColor(.gray)
+                                Text("You should have a demo conversation with our virtual walker. If it's not showing, please check your internet connection and try again.")
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal)
+                                Button(action: {
+                                    // Refresh the chat rooms
+                                    if let userId = Auth.auth().currentUser?.uid {
+                                        print("🔄 Manually refreshing chat rooms for user: \(userId)")
+                                        chatService.fetchChatRooms(userId: userId, isWalker: false)
+                                    }
+                                }) {
+                                    Text("Refresh")
+                                        .font(.headline)
+                                        .foregroundColor(.white)
+                                        .padding(.vertical, 10)
+                                        .padding(.horizontal, 20)
+                                        .background(Color(hex: "FF6B6B"))
+                                        .cornerRadius(8)
+                                }
+                                .padding(.top, 20)
+                                Spacer()
+                            }
+                        } else {
+                            ScrollView {
+                                VStack(spacing: 0) {
+                                    ForEach(filteredChatRooms) { chatRoom in
+                                        FirebaseChatRow(chatRoom: chatRoom, isWalker: false) {
+                                            selectedChatRoom = chatRoom
+                                            // Mark messages as read when opening chat
+                                            if let userId = Auth.auth().currentUser?.uid {
+                                                if let chatRoomId = chatRoom.id {
+                                                    print("📱 Marking messages as read in chat room: \(chatRoomId)")
+                                                    chatService.markMessagesAsRead(
+                                                        chatRoomId: chatRoomId,
+                                                        userId: userId
+                                                    ) { result in
+                                                        switch result {
+                                                        case .success():
+                                                            print("✅ Messages marked as read successfully")
+                                                        case .failure(let error):
+                                                            print("⚠️ Error marking messages as read: \(error.localizedDescription)")
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        Divider()
+                                            .padding(.leading, 80)
                                     }
                                 }
+                                .padding(.top, 8)
+                                .background(Color.white)
+                                .cornerRadius(12)
+                                .padding(.horizontal)
                             }
-                            .padding(.horizontal)
-                            .padding(.top, 8)
                         }
-                        
-                        // Bottom navigation bar
-                        BottomNavBar(selectedTab: 2)
                     } else {
-                        // Entire modal view with back button
-                        VStack(spacing: 0) {
-                            // Back button header for the entire modal
-                            HStack {
-                                Button(action: {
-                                    // Dismiss modal by setting selectedChat to nil
-                                    selectedChat = nil
-                                }) {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "arrow.left")
-                                            .font(.system(size: 18))
-                                        
-                                        Text("Back")
-                                            .font(.system(size: 16, weight: .medium))
-                                    }
-                                    .foregroundColor(ColorUtils.colorFromHex("6B7AFF"))
-                                }
-                                
-                                Spacer()
-                                
-                                Text(selectedChat?.walkerName ?? "")
-                                    .font(.system(size: 16, weight: .semibold))
-                                
-                                Spacer()
-                                
-                                Button(action: {
-                                    // Call action
-                                }) {
-                                    Image(systemName: "phone.fill")
-                                        .font(.system(size: 20))
-                                        .foregroundColor(ColorUtils.colorFromHex("6B7AFF"))
-                                        .padding(8)
-                                        .background(ColorUtils.colorFromHex("E8EAFF"))
-                                        .clipShape(Circle())
-                                }
-                            }
-                            .padding()
-                            .background(Color.white)
-                            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-                            
-                            // Chat detail view
-                            WalkerChatDetailView(chat: $selectedChat, messageText: $messageText)
-                        }
+                        // Chat detail view
+                        FirebaseChatDetailView(
+                            chatRoom: selectedChatRoom!,
+                            onBack: { selectedChatRoom = nil }
+                        )
                     }
                 }
             }
             .navigationBarHidden(true)
+            .onAppear {
+                // Fetch chat rooms when the view appears
+                if let user = Auth.auth().currentUser {
+                    print("📱 DogOwnerChatView: User is authenticated with ID: \(user.uid)")
+                    chatService.fetchChatRooms(userId: user.uid, isWalker: false)
+                    
+                    // Check if demo chat should be created
+                    print("📱 DogOwnerChatView: Checking for demo chat room for user \(user.uid)")
+                } else {
+                    print("⚠️ DogOwnerChatView: No authenticated user found")
+                }
+            }
+            .onDisappear {
+                // Detach listeners when view disappears
+                chatService.detachListeners()
+            }
         }
     }
 }
 
-// MARK: - Supporting Views
-struct TabButtonView: View {
-    let title: String
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 16, weight: isSelected ? .semibold : .regular))
-                .padding(.vertical, 10)
-                .frame(maxWidth: .infinity)
-                .foregroundColor(isSelected ? ColorUtils.colorFromHex("6B7AFF") : .gray)
-                .background(
-                    VStack {
-                        Spacer()
-                        if isSelected {
-                            Rectangle()
-                                .fill(ColorUtils.colorFromHex("6B7AFF"))
-                                .frame(height: 3)
-                        }
-                    }
-                )
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
-
-struct WalkerChatRow: View {
-    let chat: WalkerChat
-    let action: () -> Void
-    
-    var statusColor: Color {
-        switch chat.walkStatus {
-        case "Confirmed":
-            return Color.green
-        case "En Route":
-            return Color.orange
-        case "Scheduled":
-            return Color.blue
-        case "Completed":
-            return Color.gray
-        default:
-            return Color.black
-        }
-    }
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 12) {
-                    Image(systemName: chat.avatar)
-                        .resizable()
-                        .frame(width: 56, height: 56)
-                        .foregroundColor(ColorUtils.colorFromHex("6B7AFF"))
-                        .background(ColorUtils.colorFromHex("E8EAFF"))
-                        .clipShape(Circle())
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text(chat.walkerName)
-                                .font(.system(size: 16, weight: .semibold))
-                            
-                            Text("★ \(chat.rating)")
-                                .font(.system(size: 14))
-                                .foregroundColor(.orange)
-                            
-                            Spacer()
-                            
-                            Text(chat.walkTime)
-                                .font(.system(size: 14))
-                                .foregroundColor(.gray)
-                        }
-                        
-                        HStack {
-                            Text(chat.walkStatus)
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(statusColor)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(statusColor.opacity(0.1))
-                                .cornerRadius(10)
-                            
-                            Spacer()
-                        }
-                        
-                        Text(chat.lastMessage)
-                            .font(.system(size: 14))
-                            .foregroundColor(.gray)
-                            .lineLimit(1)
-                    }
-                }
-                .padding(12)
-            }
-            .background(Color.white)
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
-
-struct WalkerChatDetailView: View {
-    @Binding var chat: WalkerChat?
-    @Binding var messageText: String
-    
-    // Sample messages for the demo
-    let messages = [
-        WalkerMessage(id: "1", isFromWalker: true, text: "I'll be at your place at 4:30 PM sharp!", time: "1:24 PM"),
-        WalkerMessage(id: "2", isFromWalker: false, text: "Perfect! Max will be ready. He usually likes to bring his blue ball for fetch.", time: "1:30 PM"),
-        WalkerMessage(id: "3", isFromWalker: true, text: "Great, I'll make sure to include some playtime with his ball.", time: "1:32 PM"),
-        WalkerMessage(id: "4", isFromWalker: false, text: "Thanks! Also, the apartment gate code is #2468 if you need it.", time: "1:35 PM"),
-        WalkerMessage(id: "5", isFromWalker: true, text: "Got it! Do you want me to text you when we start and finish the walk?", time: "1:40 PM")
-    ]
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            // Profile info section
-            HStack(spacing: 12) {
-                Image(systemName: "person.circle.fill")
-                    .resizable()
-                    .frame(width: 40, height: 40)
-                    .foregroundColor(ColorUtils.colorFromHex("6B7AFF"))
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(chat?.walkerName ?? "")
-                        .font(.system(size: 16, weight: .semibold))
-                    
-                    Text("★ \(chat?.rating ?? "") • \(chat?.walkStatus ?? "")")
-                        .font(.system(size: 14))
-                        .foregroundColor(.gray)
-                }
-                
-                Spacer()
-            }
-            .padding(.horizontal)
-            .padding(.top, 8)
-            
-            // Walk info card
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Walk Details")
-                    .font(.system(size: 16, weight: .semibold))
-                
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text("Date & Time")
-                            .font(.system(size: 14))
-                            .foregroundColor(.gray)
-                        Text(chat?.walkTime ?? "")
-                            .font(.system(size: 14, weight: .medium))
-                    }
-                    
-                    Spacer()
-                    
-                    VStack(alignment: .trailing) {
-                        Text("Duration")
-                            .font(.system(size: 14))
-                            .foregroundColor(.gray)
-                        Text("30 minutes")
-                            .font(.system(size: 14, weight: .medium))
-                    }
-                }
-                
-                Divider()
-                    .padding(.vertical, 6)
-                
-                HStack {
-                    Button(action: {
-                        // Track walk action
-                    }) {
-                        HStack {
-                            Image(systemName: "location.fill")
-                            Text("Track Walk")
-                        }
-                        .font(.system(size: 14, weight: .medium))
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 12)
-                        .foregroundColor(.white)
-                        .background(ColorUtils.colorFromHex("6B7AFF"))
-                        .cornerRadius(20)
-                    }
-                    
-                    Spacer()
-                    
-                    if chat?.walkStatus == "Scheduled" || chat?.walkStatus == "Confirmed" {
-                        Button(action: {
-                            // Cancel walk action
-                        }) {
-                            Text("Cancel Walk")
-                                .font(.system(size: 14, weight: .medium))
-                                .padding(.vertical, 8)
-                                .padding(.horizontal, 12)
-                                .foregroundColor(ColorUtils.colorFromHex("FF6B6B"))
-                                .background(ColorUtils.colorFromHex("FFEEEE"))
-                                .cornerRadius(20)
-                        }
-                    }
-                }
-            }
-            .padding()
-            .background(Color.white)
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-            .padding(.horizontal)
-            .padding(.top, 8)
-            
-            // Chat messages
-            ScrollView {
-                VStack(spacing: 16) {
-                    ForEach(messages) { message in
-                        WalkerMessageBubble(message: message)
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.top, 16)
-            }
-            
-            // Message input
-            HStack(spacing: 12) {
-                Button(action: {
-                    // Attach photo or media
-                }) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(ColorUtils.colorFromHex("6B7AFF"))
-                }
-                
-                TextField("Message", text: $messageText)
-                    .padding(10)
-                    .background(ColorUtils.colorFromHex("F8F6FF"))
-                    .cornerRadius(20)
-                
-                Button(action: {
-                    // Send message
-                    messageText = ""
-                }) {
-                    Image(systemName: "paperplane.fill")
-                        .font(.system(size: 22))
-                        .foregroundColor(ColorUtils.colorFromHex("6B7AFF"))
-                }
-            }
-            .padding()
-            .background(Color.white)
-            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: -2)
-        }
-    }
-}
-
-struct WalkerMessageBubble: View {
-    let message: WalkerMessage
+// Bottom Navigation Bar
+struct BottomNavBar: View {
+    let selected: Int
     
     var body: some View {
         HStack {
-            if message.isFromWalker {
-                Spacer()
-            }
-            
-            VStack(alignment: message.isFromWalker ? .trailing : .leading, spacing: 2) {
-                Text(message.text)
-                    .padding(12)
-                    .background(message.isFromWalker ? ColorUtils.colorFromHex("E8EAFF") : ColorUtils.colorFromHex("6B7AFF"))
-                    .foregroundColor(message.isFromWalker ? .black : .white)
-                    .cornerRadius(20)
-                
-                Text(message.time)
-                    .font(.system(size: 12))
-                    .foregroundColor(.gray)
-                    .padding(.horizontal, 4)
-            }
-            
-            if !message.isFromWalker {
-                Spacer()
-            }
+            BottomNavButton(iconName: "house.fill", text: "Home", isSelected: selected == 0)
+            BottomNavButton(iconName: "message.fill", text: "Chats", isSelected: selected == 1)
+            BottomNavButton(iconName: "calendar", text: "Calendar", isSelected: selected == 2)
+            BottomNavButton(iconName: "person.fill", text: "Profile", isSelected: selected == 3)
         }
-    }
-}
-
-struct BottomNavBar: View {
-    let selectedTab: Int
-    
-    var body: some View {
-        HStack(spacing: 0) {
-            BottomNavButton(icon: "house.fill", title: "Home", isSelected: selectedTab == 0)
-            BottomNavButton(icon: "magnifyingglass", title: "Search", isSelected: selectedTab == 1)
-            BottomNavButton(icon: "message.fill", title: "Chats", isSelected: selectedTab == 2)
-            BottomNavButton(icon: "calendar", title: "Schedule", isSelected: selectedTab == 3)
-            BottomNavButton(icon: "person.fill", title: "Profile", isSelected: selectedTab == 4)
-        }
-        .padding(.vertical, 8)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
         .background(Color.white)
-        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: -2)
+        .cornerRadius(20)
+        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: -2)
+        .padding(.bottom, 10)
+        .padding(.horizontal)
     }
 }
 
 struct BottomNavButton: View {
-    let icon: String
-    let title: String
+    let iconName: String
+    let text: String
     let isSelected: Bool
     
     var body: some View {
         VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 22))
-                .foregroundColor(isSelected ? ColorUtils.colorFromHex("6B7AFF") : .gray)
+            Image(systemName: iconName)
+                .font(.system(size: 20))
+                .foregroundColor(isSelected ? Color(hex: "FF6B6B") : Color.gray)
             
-            Text(title)
+            Text(text)
                 .font(.system(size: 12))
-                .foregroundColor(isSelected ? ColorUtils.colorFromHex("6B7AFF") : .gray)
+                .foregroundColor(isSelected ? Color(hex: "FF6B6B") : Color.gray)
         }
         .frame(maxWidth: .infinity)
     }
 }
 
-// MARK: - Helper Utilities
+// Color Utilities
 struct ColorUtils {
-    static func colorFromHex(_ hex: String) -> Color {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 3: // RGB (12-bit)
-            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6: // RGB (24-bit)
-            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8: // ARGB (32-bit)
-            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-        default:
-            (a, r, g, b) = (1, 1, 1, 0)
-        }
+    static func hexStringToColor(hex: String) -> Color {
+        var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
         
-        return Color(
-            .sRGB,
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue: Double(b) / 255,
-            opacity: Double(a) / 255
-        )
+        var rgb: UInt64 = 0
+        
+        Scanner(string: hexSanitized).scanHexInt64(&rgb)
+        
+        let red = Double((rgb & 0xFF0000) >> 16) / 255.0
+        let green = Double((rgb & 0x00FF00) >> 8) / 255.0
+        let blue = Double(rgb & 0x0000FF) / 255.0
+        
+        return Color(red: red, green: green, blue: blue)
     }
 }
 

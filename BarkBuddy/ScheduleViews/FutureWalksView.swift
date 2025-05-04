@@ -11,7 +11,7 @@ import FirebaseFirestore
 struct FutureWalksView: View {
     let userID: String
     // MARK: - Properties
-    @State private var calendarViewMode: CalendarViewMode = .week
+    @State private var calendarViewMode: CalendarViewMode = .month
     @State private var selectedDate = Date()
     @State private var walks: [DogWalk] = []
     @State private var showingScheduleSheet = false // State to control the sheet presentation
@@ -72,6 +72,12 @@ struct FutureWalksView: View {
             .sheet(isPresented: $showingScheduleSheet) {
                 ScheduleWalkView(userID: self.userID) // Present the ScheduleWalkView
             }
+            .onChange(of: showingScheduleSheet) { oldValue, newValue in
+                // only refetch when the sheet has just been dismissed
+                if !newValue {
+                    fetchUpcomingWalks()
+                }
+            }
         }
         .onAppear(perform: fetchUpcomingWalks)
     }
@@ -120,8 +126,12 @@ struct FutureWalksView: View {
                 
             }
 
-            self.walks = loadedWalks
-            print("Walks: ", self.walks)
+            DispatchQueue.main.async {
+                self.walks = loadedWalks
+                if let first = loadedWalks.first {
+                  self.selectedDate = first.startTime
+                }
+              }
         }
     }
 

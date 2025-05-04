@@ -1,5 +1,9 @@
 import SwiftUI
-import FirebaseAuth // <--- Import FirebaseAuth
+import FirebaseAuth
+
+struct UserIDWrapper: Identifiable {
+  let id: String
+}
 
 struct HomeView: View {
     @State private var searchText = ""
@@ -12,12 +16,15 @@ struct HomeView: View {
     @State private var showAcceptedChatsOwner = false
     @State private var showUserDuringWalkView = false
     @State private var showWalkerDuringWalkView = false
-
-    // State variable to store the current user's ID
-    @State private var currentUserID: String? = nil // <-- Initialize as optional String
-    @State private var showProfileDogWalkerModalPending = false
+    @State private var selectedProfileUser: UserIDWrapper? = nil
+    @State private var selectedFutureWalkUser: UserIDWrapper? = nil
 
 
+    // Use a non-optional currentUserID with a default empty string
+    @State private var currentUserID: String = ""
+    
+    // Variable to track if user ID has been fetched
+    @State private var isUserIDLoaded = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -87,11 +94,8 @@ struct HomeView: View {
                     VStack(spacing: 12) {
                         // Quick Walk Option
                         Button(action: {
-                            if currentUserID != nil {
-                                showProfileDogWalkerModalPending = true
-                            } else {
-                                print("⚠️ User ID not ready yet.")
-                            }
+                            guard isUserIDLoaded else { print("⚠️ not ready"); return }
+                            selectedProfileUser = UserIDWrapper(id: currentUserID)
                         }) {
                             QuickOptionButton(
                                 icon: "clock",
@@ -100,11 +104,10 @@ struct HomeView: View {
                                 color: .teal
                             )
                         }
-
-
                         // Schedule Option
                         Button(action: {
-                            showFutureWalksModal = true
+                            guard isUserIDLoaded else { print("⚠️ not ready"); return }
+                            selectedFutureWalkUser = UserIDWrapper(id: currentUserID)
                         }) {
                             QuickOptionButton(
                                 icon: "calendar",
@@ -168,8 +171,6 @@ struct HomeView: View {
                             }
                         }
 
-                        // Use the renamed WalkerCard if needed (or keep original if that exists)
-                        // Assuming WalkerCard struct exists elsewhere. Using new_WalkerCard for now.
                         new_WalkerCard(
                              name: "Sarah J.",
                              rating: 4.9,
@@ -203,12 +204,11 @@ struct HomeView: View {
                      .font(.title).padding()
                      .onAppear { print("Showing all walkers modal") }
               }
-             .sheet(isPresented: $showProfileDogWalkerModalPending) {
-                 // Safely unwrap the optional userID *inside* the sheet's content closure
-                     DogWalkerProfileView(userID: "gwcZGcoKNwa1iS7424utiwzY1G62") // Pass the non-optional String
+             .sheet(item: $selectedProfileUser) { wrapper in
+               DogWalkerProfileView(userID: wrapper.id)
              }
-             .sheet(isPresented: $showFutureWalksModal) {
-                     FutureWalksView(userID: "gwcZGcoKNwa1iS7424utiwzY1G62")
+             .sheet(item: $selectedFutureWalkUser) { wrapper in
+                 FutureWalksView(userID: wrapper.id)
               }
              .sheet(isPresented: $showPastWalksModal) {
                   PastWalksView() // Assuming this view exists
@@ -236,9 +236,9 @@ struct HomeView: View {
              .background(Color.white)
              .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: -2)
         }
+        .navigationBarBackButtonHidden(true)
         .edgesIgnoringSafeArea(.bottom)
-        // .navigationBarBackButtonHidden(true) // Only use if within NavigationView
-        .onAppear { // <-- Fetch User ID when the view appears
+        .onAppear {
             fetchUserID()
         }
     }
@@ -248,10 +248,11 @@ struct HomeView: View {
         // Get the current user from Firebase Auth
         if let user = Auth.auth().currentUser {
             self.currentUserID = user.uid
-            print("✅ Current User ID: \(self.currentUserID ?? "N/A")")
-            // You can now use self.currentUserID where needed (e.g., pass it to other views or use in Firestore queries)
+            self.isUserIDLoaded = true
+            print("✅ Current User ID: \(self.currentUserID)")
         } else {
-            self.currentUserID = nil // Ensure it's nil if no user is logged in
+            self.currentUserID = ""
+            self.isUserIDLoaded = false
             print("⚠️ No user logged in.")
             // Handle the case where the user is not logged in (e.g., show login screen)
         }

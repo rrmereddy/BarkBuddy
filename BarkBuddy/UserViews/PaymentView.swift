@@ -157,7 +157,7 @@ struct PaymentView: View {
                         
                         TextField("Enter custom amount", text: $customTipString)
                             .keyboardType(.decimalPad)
-                            .onChange(of: customTipString) { newValue in
+                            .onChange(of: customTipString) { oldValue, newValue in
                                 if let amount = Double(newValue) {
                                     tipAmount = amount
                                     selectedTipIndex = nil

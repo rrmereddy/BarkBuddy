@@ -304,9 +304,9 @@ struct HomeView: View {
              .sheet(isPresented: $showAcceptedChatsWalker) {
                 AcceptedChatView() // Correct view for walkers
              }
-             .sheet(isPresented: $showLoginModal) {
-                LoginView() // Show Login modal when logout is performed
-             }
+//             .sheet(isPresented: $showLoginModal) {
+//                LoginView() // Show Login modal when logout is performed
+//             }
 
             // Bottom Navigation (remains the same)
              HStack(spacing: 0) {
@@ -322,6 +322,9 @@ struct HomeView: View {
              .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: -2)
         }
         .navigationBarBackButtonHidden(true)
+        .navigationDestination(isPresented: $showLoginModal) {
+            LoginView()
+        }
         .edgesIgnoringSafeArea(.bottom)
         .onAppear {
             fetchUserID()
